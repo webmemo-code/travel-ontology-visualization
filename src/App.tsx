@@ -191,7 +191,7 @@ function Viewer({ graph }: { graph: Graph }) {
 
       <header className="hud top-left">
         <h1>
-          Ontology <span>Cube</span>
+          Ontology <span>Memo</span>
         </h1>
         <p className="sub">The knowledge map behind Travelmemo &amp; Reisememo</p>
         <div className="stats">

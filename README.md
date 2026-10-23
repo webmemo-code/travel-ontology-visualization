@@ -1,4 +1,4 @@
-# Ontology Cube
+# Ontology Memo
 
 Interactive 3D map of the knowledge graph behind
 [travelmemo.com](https://travelmemo.com) and [reisememo.ch](https://reisememo.ch).
