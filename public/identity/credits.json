@@ -1,0 +1,738 @@
+{
+ "organizations/25hours": {
+  "image": "identity/organizations-25hours.png",
+  "kind": "logo",
+  "file": "25hours Hotels logo.svg",
+  "license": "Public domain",
+  "artist": "Unknown authorUnknown author",
+  "source": "https://commons.wikimedia.org/wiki/File:25hours_Hotels_logo.svg"
+ },
+ "organizations/aman": {
+  "image": "identity/organizations-aman.png",
+  "kind": "logo",
+  "file": "Aman Resorts logo.svg",
+  "license": "Public domain",
+  "artist": "Aman Resorts",
+  "source": "https://commons.wikimedia.org/wiki/File:Aman_Resorts_logo.svg"
+ },
+ "organizations/booking-com": {
+  "image": "identity/organizations-booking-com.png",
+  "kind": "logo",
+  "file": "Booking.com Logo.svg",
+  "license": "Public domain",
+  "artist": "Booking.com B.V.",
+  "source": "https://commons.wikimedia.org/wiki/File:Booking.com_Logo.svg"
+ },
+ "organizations/edelweiss-air": {
+  "image": "identity/organizations-edelweiss-air.png",
+  "kind": "logo",
+  "file": "Edelweiss Air wordmark.svg",
+  "license": "Public domain",
+  "artist": "Edelweiss Air AG",
+  "source": "https://commons.wikimedia.org/wiki/File:Edelweiss_Air_wordmark.svg"
+ },
+ "organizations/getyourguide": {
+  "image": "identity/organizations-getyourguide.png",
+  "kind": "logo",
+  "file": "GetYourGuide company logo.png",
+  "license": "CC BY-SA 4.0",
+  "artist": "GetYourGuide",
+  "source": "https://commons.wikimedia.org/wiki/File:GetYourGuide_company_logo.png"
+ },
+ "organizations/leading-hotels-of-the-world": {
+  "image": "identity/organizations-leading-hotels-of-the-world.png",
+  "kind": "logo",
+  "file": "The Leading Hotels of the World logo.svg",
+  "license": "Public domain",
+  "artist": "The Leading Hotels of the World",
+  "source": "https://commons.wikimedia.org/wiki/File:The_Leading_Hotels_of_the_World_logo.svg"
+ },
+ "organizations/mgb": {
+  "image": "identity/organizations-mgb.png",
+  "kind": "logo",
+  "file": "Logo Matterhorn-Gotthard-Bahn.svg",
+  "license": "Public domain",
+  "artist": "Unknown authorUnknown author",
+  "source": "https://commons.wikimedia.org/wiki/File:Logo_Matterhorn-Gotthard-Bahn.svg"
+ },
+ "organizations/movenpick": {
+  "image": "identity/organizations-movenpick.png",
+  "kind": "logo",
+  "file": "Mövenpick Logo.svg",
+  "license": "Public domain",
+  "artist": "Unknown authorUnknown author",
+  "source": "https://commons.wikimedia.org/wiki/File:M%C3%B6venpick_Logo.svg"
+ },
+ "organizations/reisememo": {
+  "image": "identity/organizations-reisememo.png",
+  "kind": "logo",
+  "file": "reisememo-logo.png",
+  "license": "own brand",
+  "artist": "Webmemo",
+  "source": "https://reisememo.ch/wp-content/uploads/2021/03/reisememo-logo.png"
+ },
+ "organizations/rhb": {
+  "image": "identity/organizations-rhb.png",
+  "kind": "logo",
+  "file": "N rhb dreisprachig logo 4c.svg",
+  "license": "Public domain",
+  "artist": "Rhätische Bahn",
+  "source": "https://commons.wikimedia.org/wiki/File:N_rhb_dreisprachig_logo_4c.svg"
+ },
+ "organizations/swiss-international-air-lines": {
+  "image": "identity/organizations-swiss-international-air-lines.png",
+  "kind": "logo",
+  "file": "Swiss International Air Lines Logo 2011.svg",
+  "license": "Public domain",
+  "artist": "Swiss International Air Lines",
+  "source": "https://commons.wikimedia.org/wiki/File:Swiss_International_Air_Lines_Logo_2011.svg"
+ },
+ "organizations/travelmemo": {
+  "image": "identity/organizations-travelmemo.png",
+  "kind": "logo",
+  "file": "travelmemo-logo.png",
+  "license": "own brand",
+  "artist": "Webmemo",
+  "source": "https://travelmemo.com/wp-content/uploads/2021/08/travelmemo-logo.png"
+ },
+ "organizations/w-hotel": {
+  "image": "identity/organizations-w-hotel.png",
+  "kind": "logo",
+  "file": "W Hotels Logo.svg",
+  "license": "Public domain",
+  "artist": "Unknown authorUnknown author",
+  "source": "https://commons.wikimedia.org/wiki/File:W_Hotels_Logo.svg"
+ },
+ "places/aargau": {
+  "image": "identity/places-aargau.png",
+  "kind": "arms",
+  "file": "CHE Aargau COA.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:CHE_Aargau_COA.svg"
+ },
+ "places/appenzell": {
+  "image": "identity/places-appenzell.png",
+  "kind": "arms",
+  "file": "CHE Appenzell Innerrhoden COA.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:CHE_Appenzell_Innerrhoden_COA.svg"
+ },
+ "places/argentina": {
+  "image": "identity/places-argentina.png",
+  "kind": "flag",
+  "file": "Flag of Argentina.svg",
+  "license": "Public domain",
+  "artist": "Manuel Belgrano",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Argentina.svg"
+ },
+ "places/australia": {
+  "image": "identity/places-australia.png",
+  "kind": "flag",
+  "file": "Flag of Australia (converted).svg",
+  "license": "Public domain",
+  "artist": "Unknown (Vector graphics image by Ian Fieggen) (only minor code changes by uploader.)",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Australia_(converted).svg"
+ },
+ "places/austria": {
+  "image": "identity/places-austria.png",
+  "kind": "flag",
+  "file": "Flag of Austria.svg",
+  "license": "Public domain",
+  "artist": "Bundesministerium für Landesverteidigung",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Austria.svg"
+ },
+ "places/basel-stadt": {
+  "image": "identity/places-basel-stadt.png",
+  "kind": "arms",
+  "file": "Wappen Basel-Stadt matt.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:Wappen_Basel-Stadt_matt.svg"
+ },
+ "places/belgium": {
+  "image": "identity/places-belgium.png",
+  "kind": "flag",
+  "file": "Flag of Belgium.svg",
+  "license": "Public domain",
+  "artist": "Dbenbenn and others",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Belgium.svg"
+ },
+ "places/bern": {
+  "image": "identity/places-bern.png",
+  "kind": "arms",
+  "file": "CHE Bern BE COA.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:CHE_Bern_BE_COA.svg"
+ },
+ "places/botswana": {
+  "image": "identity/places-botswana.png",
+  "kind": "flag",
+  "file": "Flag of Botswana.svg",
+  "license": "Public domain",
+  "artist": "SKopp, Gabbe, Madden",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Botswana.svg"
+ },
+ "places/bulgaria": {
+  "image": "identity/places-bulgaria.png",
+  "kind": "flag",
+  "file": "Flag of Bulgaria.svg",
+  "license": "Public domain",
+  "artist": "SKopp",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Bulgaria.svg"
+ },
+ "places/canada": {
+  "image": "identity/places-canada.png",
+  "kind": "flag",
+  "file": "Flag of Canada (Pantone).svg",
+  "license": "Public domain",
+  "artist": "Original: George F. G. Stanley Modified by: The original uploader was Illegitimate Barrister at Wikimedia Commons. The current SVG encoding is a rewrite performed by MapGrid.",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Canada_(Pantone).svg"
+ },
+ "places/chile": {
+  "image": "identity/places-chile.png",
+  "kind": "flag",
+  "file": "Flag of Chile.svg",
+  "license": "Public domain",
+  "artist": "See file history below for details.",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Chile.svg"
+ },
+ "places/china": {
+  "image": "identity/places-china.png",
+  "kind": "flag",
+  "file": "Flag of the People's Republic of China.svg",
+  "license": "Public domain",
+  "artist": "Zeng Liansong",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_the_People%27s_Republic_of_China.svg"
+ },
+ "places/costa-rica": {
+  "image": "identity/places-costa-rica.png",
+  "kind": "flag",
+  "file": "Flag of Costa Rica.svg",
+  "license": "Public domain",
+  "artist": "See File history below for details.",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Costa_Rica.svg"
+ },
+ "places/croatia": {
+  "image": "identity/places-croatia.png",
+  "kind": "flag",
+  "file": "Flag of Croatia.svg",
+  "license": "Public domain",
+  "artist": "Nightstallion, Elephantus, Neoneo13, Denelson83, Rainman, R-41, Minestrone, Lupo, Zscout370,MaGa (based on Decision of the Parliament)",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Croatia.svg"
+ },
+ "places/cyprus": {
+  "image": "identity/places-cyprus.png",
+  "kind": "flag",
+  "file": "Flag of Cyprus.svg",
+  "license": "Public domain",
+  "artist": "İsmet Güney, SVG by User:Vzb83~commonswiki",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Cyprus.svg"
+ },
+ "places/czech-republic": {
+  "image": "identity/places-czech-republic.png",
+  "kind": "flag",
+  "file": "Flag of the Czech Republic.svg",
+  "license": "Public domain",
+  "artist": "Jaroslav Kursa",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_the_Czech_Republic.svg"
+ },
+ "places/denmark": {
+  "image": "identity/places-denmark.png",
+  "kind": "flag",
+  "file": "Flag of Denmark.svg",
+  "license": "Public domain",
+  "artist": "Madden and others",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Denmark.svg"
+ },
+ "places/egypt": {
+  "image": "identity/places-egypt.png",
+  "kind": "flag",
+  "file": "Flag of Egypt.svg",
+  "license": "Public domain",
+  "artist": "See File history below for details.",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Egypt.svg"
+ },
+ "places/england": {
+  "image": "identity/places-england.png",
+  "kind": "flag",
+  "file": "Flag of England.svg",
+  "license": "Public domain",
+  "artist": "Original: traditional Vector: Nicholas Shanks",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_England.svg"
+ },
+ "places/finland": {
+  "image": "identity/places-finland.png",
+  "kind": "flag",
+  "file": "Flag of Finland.svg",
+  "license": "Public domain",
+  "artist": "Unknown",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Finland.svg"
+ },
+ "places/france": {
+  "image": "identity/places-france.png",
+  "kind": "flag",
+  "file": "Flag of France.svg",
+  "license": "Public domain",
+  "artist": "Original: Unknown Vector: SKopp",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_France.svg"
+ },
+ "places/fribourg": {
+  "image": "identity/places-fribourg.png",
+  "kind": "arms",
+  "file": "CHE Canton de Fribourg COA.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:CHE_Canton_de_Fribourg_COA.svg"
+ },
+ "places/geneve": {
+  "image": "identity/places-geneve.png",
+  "kind": "arms",
+  "file": "CHE Canton de Genève écu seul COA.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:CHE_Canton_de_Gen%C3%A8ve_%C3%A9cu_seul_COA.svg"
+ },
+ "places/germany": {
+  "image": "identity/places-germany.png",
+  "kind": "flag",
+  "file": "Flag of Germany.svg",
+  "license": "Public domain",
+  "artist": "User:SKopp, User:Madden, and other users",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Germany.svg"
+ },
+ "places/glarus": {
+  "image": "identity/places-glarus.png",
+  "kind": "arms",
+  "file": "CHE Kanton Glarus COA.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:CHE_Kanton_Glarus_COA.svg"
+ },
+ "places/graubuenden": {
+  "image": "identity/places-graubuenden.png",
+  "kind": "arms",
+  "file": "CHE Graubünden COA.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:CHE_Graub%C3%BCnden_COA.svg"
+ },
+ "places/greece": {
+  "image": "identity/places-greece.png",
+  "kind": "flag",
+  "file": "Flag of Greece.svg",
+  "license": "Public domain",
+  "artist": "Unknown authorUnknown author",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Greece.svg"
+ },
+ "places/iceland": {
+  "image": "identity/places-iceland.png",
+  "kind": "flag",
+  "file": "Flag of Iceland.svg",
+  "license": "Public domain",
+  "artist": "Original: Matthías Þórðarson Vector: Árni Dagur and Magasjukur2",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Iceland.svg"
+ },
+ "places/india": {
+  "image": "identity/places-india.png",
+  "kind": "flag",
+  "file": "Flag of India.svg",
+  "license": "Public domain",
+  "artist": "Government of India",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_India.svg"
+ },
+ "places/italy": {
+  "image": "identity/places-italy.png",
+  "kind": "flag",
+  "file": "Flag of Italy.svg",
+  "license": "Public domain",
+  "artist": "See below.",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Italy.svg"
+ },
+ "places/japan": {
+  "image": "identity/places-japan.png",
+  "kind": "flag",
+  "file": "Flag of Japan.svg",
+  "license": "Public domain",
+  "artist": "Various",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Japan.svg"
+ },
+ "places/laos": {
+  "image": "identity/places-laos.png",
+  "kind": "flag",
+  "file": "Flag of Laos.svg",
+  "license": "Public domain",
+  "artist": "SKopp",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Laos.svg"
+ },
+ "places/liechtenstein": {
+  "image": "identity/places-liechtenstein.png",
+  "kind": "flag",
+  "file": "Flag of Liechtenstein.svg",
+  "license": "Public domain",
+  "artist": "Mnmazur and others",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Liechtenstein.svg"
+ },
+ "places/lithuania": {
+  "image": "identity/places-lithuania.png",
+  "kind": "flag",
+  "file": "Flag of Lithuania.svg",
+  "license": "Public domain",
+  "artist": "Original: Jonas Basanavičius, Tadas Daugirdas and Antanas Žmuidzinavičius Vector: SKopp The SVG code is valid. This flag was created with a text editor.Previous version had been created with Inkscape (1930 bytes) f now 14.15% of previous size Please do not replace the simplified code of this file with a version created with Inkscape or any other graphical vector graphics editor",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Lithuania.svg"
+ },
+ "places/luzern": {
+  "image": "identity/places-luzern.png",
+  "kind": "arms",
+  "file": "CHE Luzern COA.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:CHE_Luzern_COA.svg"
+ },
+ "places/maldives": {
+  "image": "identity/places-maldives.png",
+  "kind": "flag",
+  "file": "Flag of Maldives.svg",
+  "license": "Public domain",
+  "artist": "See File history, below, for details.",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Maldives.svg"
+ },
+ "places/malta": {
+  "image": "identity/places-malta.png",
+  "kind": "flag",
+  "file": "Flag of Malta.svg",
+  "license": "Public domain",
+  "artist": "See File history below for details.",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Malta.svg"
+ },
+ "places/mauritius": {
+  "image": "identity/places-mauritius.png",
+  "kind": "flag",
+  "file": "Flag of Mauritius.svg",
+  "license": "Public domain",
+  "artist": "Zscout370",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Mauritius.svg"
+ },
+ "places/mexico": {
+  "image": "identity/places-mexico.png",
+  "kind": "flag",
+  "file": "Flag of Mexico.svg",
+  "license": "Public domain",
+  "artist": "Omar Alejandro Covarrubias Neri, 9 April 2006. Based on the 1968 arms by Francisco Eppens Helguera and Juan Manuel Gabino Villascán.",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Mexico.svg"
+ },
+ "places/morocco": {
+  "image": "identity/places-morocco.png",
+  "kind": "flag",
+  "file": "Flag of Morocco.svg",
+  "license": "Public domain",
+  "artist": "Denelson83, Zscout370",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Morocco.svg"
+ },
+ "places/namibia": {
+  "image": "identity/places-namibia.png",
+  "kind": "flag",
+  "file": "Flag of Namibia.svg",
+  "license": "Public domain",
+  "artist": "SVG by Vzb83~commonswiki et al.",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Namibia.svg"
+ },
+ "places/netherlands": {
+  "image": "identity/places-netherlands.png",
+  "kind": "flag",
+  "file": "Flag of the Netherlands.svg",
+  "license": "Public domain",
+  "artist": "Zscout370",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_the_Netherlands.svg"
+ },
+ "places/neuchatel": {
+  "image": "identity/places-neuchatel.png",
+  "kind": "arms",
+  "file": "Wappen Neuenburg matt.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:Wappen_Neuenburg_matt.svg"
+ },
+ "places/new-zealand": {
+  "image": "identity/places-new-zealand.png",
+  "kind": "flag",
+  "file": "Flag of New Zealand.svg",
+  "license": "Public domain",
+  "artist": "Original: Albert Hastings Markham Vector: Zscout370, Hugh Jass, s. File history",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_New_Zealand.svg"
+ },
+ "places/nidwalden": {
+  "image": "identity/places-nidwalden.png",
+  "kind": "arms",
+  "file": "Wappen Nidwalden matt.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:Wappen_Nidwalden_matt.svg"
+ },
+ "places/norway": {
+  "image": "identity/places-norway.png",
+  "kind": "flag",
+  "file": "Flag of Norway.svg",
+  "license": "Public domain",
+  "artist": "Original: Fredrik Meltzer Vector: Gutten på Hemsen",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Norway.svg"
+ },
+ "places/obwalden": {
+  "image": "identity/places-obwalden.png",
+  "kind": "arms",
+  "file": "Wappen Obwalden matt.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:Wappen_Obwalden_matt.svg"
+ },
+ "places/oman": {
+  "image": "identity/places-oman.png",
+  "kind": "flag",
+  "file": "Flag of Oman.svg",
+  "license": "OGL-om 1.0",
+  "artist": "See File history below for details.",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Oman.svg"
+ },
+ "places/palau": {
+  "image": "identity/places-palau.png",
+  "kind": "flag",
+  "file": "Flag of Palau.svg",
+  "license": "Public domain",
+  "artist": "Original: John Blau Skebong Vector: Nightstallion",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Palau.svg"
+ },
+ "places/peru": {
+  "image": "identity/places-peru.png",
+  "kind": "flag",
+  "file": "Flag of Peru.svg",
+  "license": "Public domain",
+  "artist": "David Benbennick",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Peru.svg"
+ },
+ "places/philippines": {
+  "image": "identity/places-philippines.png",
+  "kind": "flag",
+  "file": "Flag of the Philippines.svg",
+  "license": "Public domain",
+  "artist": "See File history below for details.",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_the_Philippines.svg"
+ },
+ "places/portugal": {
+  "image": "identity/places-portugal.png",
+  "kind": "flag",
+  "file": "Flag of Portugal (official).svg",
+  "license": "Public domain",
+  "artist": "Original: Columbano Bordalo Pinheiro Vector: Vítor Luís Rodrigues, António Martins-Tuválkin",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Portugal_(official).svg"
+ },
+ "places/romania": {
+  "image": "identity/places-romania.png",
+  "kind": "flag",
+  "file": "Flag of Romania.svg",
+  "license": "Public domain",
+  "artist": "AdiJapan",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Romania.svg"
+ },
+ "places/russia": {
+  "image": "identity/places-russia.png",
+  "kind": "flag",
+  "file": "Flag of Russia.svg",
+  "license": "Public domain",
+  "artist": "Peter the Great",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Russia.svg"
+ },
+ "places/schwyz": {
+  "image": "identity/places-schwyz.png",
+  "kind": "arms",
+  "file": "Wappen Schwyz matt.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:Wappen_Schwyz_matt.svg"
+ },
+ "places/scotland": {
+  "image": "identity/places-scotland.png",
+  "kind": "flag",
+  "file": "Flag of Scotland.svg",
+  "license": "Public domain",
+  "artist": "none known",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Scotland.svg"
+ },
+ "places/singapore": {
+  "image": "identity/places-singapore.png",
+  "kind": "flag",
+  "file": "Flag of Singapore.svg",
+  "license": "Public domain",
+  "artist": "Original: Government of Singapore Vector: Zscout370",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Singapore.svg"
+ },
+ "places/slovenia": {
+  "image": "identity/places-slovenia.png",
+  "kind": "flag",
+  "file": "Flag of Slovenia.svg",
+  "license": "Public domain",
+  "artist": "Original: Marko Pogačnik Vector: Achim1999",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Slovenia.svg"
+ },
+ "places/south-africa": {
+  "image": "identity/places-south-africa.png",
+  "kind": "flag",
+  "file": "Flag of South Africa.svg",
+  "license": "Public domain",
+  "artist": "Flag design by Frederick Brownell, image by Wikimedia Commons users",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_South_Africa.svg"
+ },
+ "places/spain": {
+  "image": "identity/places-spain.png",
+  "kind": "flag",
+  "file": "Flag of Spain.svg",
+  "license": "Public domain",
+  "artist": "RelShot 263, Echando una mano; earlier version was Pedro A. Gracia Fajardo, escudo de Manual de Imagen Institucional de la Administración General del Estado",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Spain.svg"
+ },
+ "places/st-gallen": {
+  "image": "identity/places-st-gallen.png",
+  "kind": "arms",
+  "file": "Coat of arms of canton of St. Gallen.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:Coat_of_arms_of_canton_of_St._Gallen.svg"
+ },
+ "places/switzerland": {
+  "image": "identity/places-switzerland.png",
+  "kind": "flag",
+  "file": "Flag of Switzerland.svg",
+  "license": "Public domain",
+  "artist": "Original: Unknown Vector: User:Marc Mongenet Credits: User:-xfi- User:Zscout370",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Switzerland.svg"
+ },
+ "places/tanzania": {
+  "image": "identity/places-tanzania.png",
+  "kind": "flag",
+  "file": "Flag of Tanzania.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Tanzania.svg"
+ },
+ "places/tessin": {
+  "image": "identity/places-tessin.png",
+  "kind": "arms",
+  "file": "CHE Ticino COA.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:CHE_Ticino_COA.svg"
+ },
+ "places/thailand": {
+  "image": "identity/places-thailand.png",
+  "kind": "flag",
+  "file": "Flag of Thailand.svg",
+  "license": "Public domain",
+  "artist": "Zscout370",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Thailand.svg"
+ },
+ "places/thurgau": {
+  "image": "identity/places-thurgau.png",
+  "kind": "arms",
+  "file": "CHE Thurgau COA.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:CHE_Thurgau_COA.svg"
+ },
+ "places/turkey": {
+  "image": "identity/places-turkey.png",
+  "kind": "flag",
+  "file": "Flag of Turkey.svg",
+  "license": "Public domain",
+  "artist": "David Benbennick (original author)",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Turkey.svg"
+ },
+ "places/ukraine": {
+  "image": "identity/places-ukraine.png",
+  "kind": "flag",
+  "file": "Flag of Ukraine.svg",
+  "license": "Public domain",
+  "artist": "Government of Ukraine",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Ukraine.svg"
+ },
+ "places/united-arab-emirates": {
+  "image": "identity/places-united-arab-emirates.png",
+  "kind": "flag",
+  "file": "Flag of the United Arab Emirates.svg",
+  "license": "Public domain",
+  "artist": "Abdulla Mohammed Al Maainah",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_the_United_Arab_Emirates.svg"
+ },
+ "places/united-kingdom": {
+  "image": "identity/places-united-kingdom.png",
+  "kind": "flag",
+  "file": "Flag of the United Kingdom (3-5).svg",
+  "license": "Public domain",
+  "artist": "Original: Acts of Union 1800 Vector: Yaddah",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_the_United_Kingdom_(3-5).svg"
+ },
+ "places/united-states": {
+  "image": "identity/places-united-states.png",
+  "kind": "flag",
+  "file": "Flag of the United States (DDD-F-416E specifications).svg",
+  "license": "Public domain",
+  "artist": "Vector file created by Dbenbenn, Zscout370, Jacobolus, Indolences, and Technion.",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_the_United_States_(DDD-F-416E_specifications).svg"
+ },
+ "places/uri": {
+  "image": "identity/places-uri.png",
+  "kind": "arms",
+  "file": "Wappen Uri matt.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:Wappen_Uri_matt.svg"
+ },
+ "places/vaud": {
+  "image": "identity/places-vaud.png",
+  "kind": "arms",
+  "file": "CHE Vaud COA.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:CHE_Vaud_COA.svg"
+ },
+ "places/vietnam": {
+  "image": "identity/places-vietnam.png",
+  "kind": "flag",
+  "file": "Flag of Vietnam.svg",
+  "license": "Public domain",
+  "artist": "See File history below for details.",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Vietnam.svg"
+ },
+ "places/wallis": {
+  "image": "identity/places-wallis.png",
+  "kind": "arms",
+  "file": "CHE Valais COA.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:CHE_Valais_COA.svg"
+ },
+ "places/zimbabwe": {
+  "image": "identity/places-zimbabwe.png",
+  "kind": "flag",
+  "file": "Flag of Zimbabwe.svg",
+  "license": "Public domain",
+  "artist": "See File history below for details.",
+  "source": "https://commons.wikimedia.org/wiki/File:Flag_of_Zimbabwe.svg"
+ },
+ "places/zuerich": {
+  "image": "identity/places-zuerich.png",
+  "kind": "arms",
+  "file": "CHE Zürich COA.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:CHE_Z%C3%BCrich_COA.svg"
+ },
+ "places/zug": {
+  "image": "identity/places-zug.png",
+  "kind": "arms",
+  "file": "Wappen Zug matt.svg",
+  "license": "Public domain",
+  "artist": null,
+  "source": "https://commons.wikimedia.org/wiki/File:Wappen_Zug_matt.svg"
+ }
+}
