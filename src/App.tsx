@@ -141,12 +141,25 @@ function Viewer({ graph }: { graph: Graph }) {
   useEffect(() => {
     if (tourStep === null) sceneRef.current?.select(selected);
   }, [selected, tourStep]);
-  useEffect(() => {
+  // Search hits, best first: a name that starts with the query, then more articles.
+  const hits = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return sceneRef.current?.setFilter(null);
-    const hits = graph.nodes.filter((n) => `${n.label.en} ${n.label.de} ${n.id}`.toLowerCase().includes(q));
-    sceneRef.current?.setFilter(new Set(hits.map((n) => n.key)));
-  }, [query, graph]);
+    if (!q) return [];
+    // Word starts only: "zer" finds Zermatt, not SwitZERland or LuZERne.
+    const words = (n: GraphNode) => `${n.label.en} ${n.label.de} ${n.id}`.toLowerCase().split(/[\s\-'(/&]+/);
+    const starts = (n: GraphNode) => [n.label.en, n.label.de, n.id].some((t) => t.toLowerCase().startsWith(q));
+    return graph.nodes
+      .filter((n) => (q.includes(' ') ? `${n.label.en} ${n.label.de}`.toLowerCase().includes(q) : words(n).some((w) => w.startsWith(q))))
+      .sort((a, b) => +starts(b) - +starts(a) || (statsFor(b, mode)?.posts ?? 0) - (statsFor(a, mode)?.posts ?? 0));
+  }, [query, graph, mode]);
+  useEffect(() => {
+    sceneRef.current?.setFilter(query.trim() ? new Set(hits.map((n) => n.key)) : null, hits[0]?.key ?? null);
+  }, [hits, query]);
+  const pickHit = (key: string) => {
+    setTourStep(null);
+    setQuery('');
+    setSelected(key);
+  };
 
   useEffect(() => {
     if (tourStep === null) return;
@@ -224,7 +237,36 @@ function Viewer({ graph }: { graph: Graph }) {
             {live && <span className="live-status">{liveLabel(liveState)}</span>}
           </div>
         )}
-        <input className="search" placeholder="Search: Zermatt, hiking, Aman…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search entities" />
+        <div className="search-box">
+          <input
+            className="search"
+            placeholder="Search: Zermatt, hiking, Aman…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && hits[0]) pickHit(hits[0].key);
+              if (e.key === 'Escape') setQuery('');
+            }}
+            aria-label="Search entities"
+          />
+          {query.trim() && (
+            <ul className="search-hits" role="listbox">
+              {hits.length ? (
+                hits.slice(0, 6).map((n) => (
+                  <li key={n.key}>
+                    <button onClick={() => pickHit(n.key)}>
+                      <span className="dot" style={{ background: CLASS_COLORS[n.class] }} />
+                      {labelFor(n, mode)}
+                      <small>{CLASS_NAMES[n.class]}</small>
+                    </button>
+                  </li>
+                ))
+              ) : (
+                <li className="none">No match</li>
+              )}
+            </ul>
+          )}
+        </div>
         <div className="row">
           <button className="primary" onClick={() => setTourStep(0)}>
             ▶ Guided tour

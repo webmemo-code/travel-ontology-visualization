@@ -135,6 +135,7 @@ export class GraphScene {
   private mode: SiteMode = 'both';
   private selected: string | null = null;
   private filter: Set<string> | null = null;
+  private filterTop: string | null = null;
   private hovered: string | null = null;
   private flight: { from: CameraKeyframe; to: CameraKeyframe; t0: number; ms: number; done?: () => void } | null = null;
   private frame = 0;
@@ -373,8 +374,10 @@ export class GraphScene {
     });
   }
 
-  setFilter(keys: Set<string> | null) {
+  /** Search: dim all but `keys`; `top` (what Enter would pick) also lights its articles. */
+  setFilter(keys: Set<string> | null, top: string | null = null) {
     this.filter = keys;
+    this.filterTop = top;
     this.applyStyle();
   }
 
@@ -503,6 +506,13 @@ export class GraphScene {
     this.ghostFocus.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#FFD54F', transparent: true, opacity: 0.95, depthWrite: false })));
   }
 
+  /** The top search hit lights its articles, so it shows where it lives; all hits would flood the globe. */
+  private filterPosts(): Set<string> | null {
+    if (!this.filter || !this.filterTop) return null;
+    const under = descendants(this.tree, this.filterTop);
+    return new Set(postsFor(this.graph, this.mode).filter((p) => p.entities.some((e) => under.has(e))).map(postKey));
+  }
+
   private footprintsFor(mode: SiteMode): Map<string, Footprint> {
     let fp = this.fps.get(mode);
     if (!fp) this.fps.set(mode, (fp = footprints(this.graph, postsFor(this.graph, mode))));
@@ -629,7 +639,7 @@ export class GraphScene {
     // ones that merely mention it but were filed elsewhere stay dim amber.
     const home = this.selected && this.views.has(this.selected) ? ancestorOfType(this.tree, this.nodes, this.selected, 'Country') : null;
     const fp = this.selectedFootprint();
-    this.paintDome(hl?.posts ?? null, home, fp ? liftByCountry(fp) : null);
+    this.paintDome(hl?.posts ?? this.filterPosts(), home, fp ? liftByCountry(fp) : null);
     this.updatePhotoSky(hl?.posts ?? null);
   }
 
@@ -999,7 +1009,7 @@ export class GraphScene {
     const eye = this.camera.position;
     const outside = this.view === 'graph' && eye.length() > DOME_R;
     this.labels.update(this.camera, w, h, this.view, outside
-      ? (key, p) => !this.lit?.has(key) && p.x * eye.x + p.y * eye.y + p.z * eye.z < 0
+      ? (key, p) => !this.lit?.has(key) && !this.filter?.has(key) && p.x * eye.x + p.y * eye.y + p.z * eye.z < 0
       : undefined, fade);
     this.bloom.composer.render();
     this.renderer.autoClear = false;
