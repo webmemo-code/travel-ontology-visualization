@@ -53,6 +53,7 @@ h1 span { font-weight: 700; color: var(--accent); text-shadow: 0 0 18px rgba(41,
 }
 .search-hits button:hover, .search-hits button:focus-visible { background: rgba(255, 255, 255, 0.08); }
 .search-hits .dot { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.search-hits .dot.article { border-radius: 50%; border: 1px solid #ffd54f; }
 .search-hits small { margin-left: auto; opacity: 0.6; }
 .search-hits .none { padding: 6px 8px; opacity: 0.6; }
 .row { display: flex; gap: 8px; }

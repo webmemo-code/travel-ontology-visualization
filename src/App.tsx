@@ -7,7 +7,7 @@ import { bridgeCounts } from './data/mirror';
 import { loadAtlas, type Atlas } from './data/atlas';
 import { demoLive, fetchLive, type LiveBySite } from './data/live';
 import { READER_COLOR, TIER_COLORS } from './three/live';
-import { CLASS_COLORS, CLASS_NAMES, cooccurring, descendants, labelFor, placeTree, postsFor, slugTitle, statsFor } from './data/model';
+import { CLASS_COLORS, CLASS_NAMES, PERF_RANK, cooccurring, descendants, labelFor, placeTree, postsFor, slugTitle, statsFor } from './data/model';
 import type { Graph, GraphNode, GraphPost, Perf, SiteMode } from './data/types';
 
 const PERF_TEXT: Record<Perf, string> = {
@@ -141,20 +141,38 @@ function Viewer({ graph }: { graph: Graph }) {
   useEffect(() => {
     if (tourStep === null) sceneRef.current?.select(selected);
   }, [selected, tourStep]);
-  // Search hits, best first: a name that starts with the query, then more articles.
+  // Search: every query word must start a word of the name ("zer" finds Zermatt,
+  // not SwitZERland; "park weggis" finds the Park Weggis article). Entities rank
+  // a name that starts with the query first, then more articles.
+  const q = query.trim().toLowerCase();
+  const terms = q.split(/\s+/).filter(Boolean);
+  const matches = (text: string) => {
+    const words = text.toLowerCase().split(/[\s\-'(/&.,:]+/);
+    return terms.length > 0 && terms.every((t) => words.some((w) => w.startsWith(t)));
+  };
   const hits = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    // Word starts only: "zer" finds Zermatt, not SwitZERland or LuZERne.
-    const words = (n: GraphNode) => `${n.label.en} ${n.label.de} ${n.id}`.toLowerCase().split(/[\s\-'(/&]+/);
+    if (!terms.length) return [];
     const starts = (n: GraphNode) => [n.label.en, n.label.de, n.id].some((t) => t.toLowerCase().startsWith(q));
     return graph.nodes
-      .filter((n) => (q.includes(' ') ? `${n.label.en} ${n.label.de}`.toLowerCase().includes(q) : words(n).some((w) => w.startsWith(q))))
+      .filter((n) => matches(`${n.label.en} ${n.label.de} ${n.id}`))
       .sort((a, b) => +starts(b) - +starts(a) || (statsFor(b, mode)?.posts ?? 0) - (statsFor(a, mode)?.posts ?? 0));
-  }, [query, graph, mode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, graph, mode]);
+  // Articles by their title (the permalink slug), best search performers first.
+  const postHits = useMemo(() => {
+    if (!terms.length) return [];
+    return postsFor(graph, mode)
+      .filter((p) => matches(slugTitle(p.url)))
+      .sort((a, b) => PERF_RANK[b.perf] - PERF_RANK[a.perf]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, graph, mode]);
+  // Up to 4 entities and 4 articles; whichever kind is missing gives its room to the other.
+  const shownHits = hits.slice(0, postHits.length ? 4 : 8);
+  const shownPosts = postHits.slice(0, 8 - shownHits.length);
+  const firstHit = shownHits[0]?.key ?? (shownPosts[0] ? postKey(shownPosts[0]) : null);
   useEffect(() => {
-    sceneRef.current?.setFilter(query.trim() ? new Set(hits.map((n) => n.key)) : null, hits[0]?.key ?? null);
-  }, [hits, query]);
+    sceneRef.current?.setFilter(q ? new Set(hits.map((n) => n.key)) : null, hits[0]?.key ?? null);
+  }, [hits, q]);
   const pickHit = (key: string) => {
     setTourStep(null);
     setQuery('');
@@ -240,30 +258,36 @@ function Viewer({ graph }: { graph: Graph }) {
         <div className="search-box">
           <input
             className="search"
-            placeholder="Search: Zermatt, hiking, Aman…"
+            placeholder="Search: Zermatt, hiking, an article…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && hits[0]) pickHit(hits[0].key);
+              if (e.key === 'Enter' && firstHit) pickHit(firstHit);
               if (e.key === 'Escape') setQuery('');
             }}
-            aria-label="Search entities"
+            aria-label="Search places, topics and articles"
           />
           {query.trim() && (
             <ul className="search-hits" role="listbox">
-              {hits.length ? (
-                hits.slice(0, 6).map((n) => (
-                  <li key={n.key}>
-                    <button onClick={() => pickHit(n.key)}>
-                      <span className="dot" style={{ background: CLASS_COLORS[n.class] }} />
-                      {labelFor(n, mode)}
-                      <small>{CLASS_NAMES[n.class]}</small>
-                    </button>
-                  </li>
-                ))
-              ) : (
-                <li className="none">No match</li>
-              )}
+              {shownHits.map((n) => (
+                <li key={n.key}>
+                  <button onClick={() => pickHit(n.key)}>
+                    <span className="dot" style={{ background: CLASS_COLORS[n.class] }} />
+                    {labelFor(n, mode)}
+                    <small>{CLASS_NAMES[n.class]}</small>
+                  </button>
+                </li>
+              ))}
+              {shownPosts.map((p) => (
+                <li key={postKey(p)}>
+                  <button onClick={() => pickHit(postKey(p))}>
+                    <span className="dot article" />
+                    {slugTitle(p.url)}
+                    <small>{p.site === 'travelmemo' ? 'Article EN' : 'Article DE'}</small>
+                  </button>
+                </li>
+              ))}
+              {!shownHits.length && !shownPosts.length && <li className="none">No match</li>}
             </ul>
           )}
         </div>
