@@ -65,11 +65,11 @@ export function buildStoryMap(cells: StoryCell[]): StoryMap {
 
   const en = new THREE.Color(EN_COLOR);
   const de = new THREE.Color(DE_COLOR);
-  const gold = new THREE.Color('#FFD54F');
   const paint = (lit: Set<string> | null) => {
     faces.forEach((key, f) => {
       const base = key?.includes(':travelmemo:') ? en : de;
-      const c = lit ? (key && lit.has(key) ? gold : base.clone().multiplyScalar(0.28)) : base;
+      // Lit stories keep their plain blog colour and the rest dims, so the split still reads; gold or brighter tones bloom into a blob.
+      const c = lit ? (key && lit.has(key) ? base : base.clone().multiplyScalar(0.18)) : base;
       for (let v = 0; v < 3; v++) colors.set([c.r, c.g, c.b], (f * 3 + v) * 3);
     });
     g.attributes.color.needsUpdate = true;

@@ -195,8 +195,10 @@ export class GraphScene {
     if (nowhere) this.labels.set('story:nowhere', 'No place tagged', { x: nowhere[0], y: nowhere[1] + 4, z: 1 }, 3000, { px: 12, color: '#B0BEC5', views: ['mirror'] });
     const storyPositions = new Map<string, Vec3>(
       graph.nodes.map((n) => {
-        const c = story.centres.get(n.key);
-        return [n.key, c ? { x: c[0], y: c[1], z: 2.5 } : { x: 0, y: 0, z: -400 }];
+        // A country's name sits on its patch centre as a label. Labels are never
+        // hit-tested, so every story under one stays clickable; no flags here.
+        const c = n.key ? story.centres.get(n.key) : undefined;
+        return [n.key, c ? { x: c[0], y: c[1], z: 0.6 } : { x: 0, y: 0, z: -400 }];
       }),
     );
     // Topics and companies hang over where they are over-represented, judged
@@ -559,7 +561,7 @@ export class GraphScene {
     b.halo.material.opacity = tier === 'top10' ? 0.6 : 0.3;
     if (b.face) {
       const person = node.class === 'people';
-      const f = this.view === 'system' ? 1.3 : this.view === 'mirror' ? 1.8 : person ? 6.5 : Math.max(2.2, b.size * (node.type === 'Country' ? 1.05 : node.class === 'places' ? 1.25 : 1.5));
+      const f = this.view === 'system' ? 1.3 : this.view === 'mirror' ? 1.3 : person ? 6.5 : Math.max(2.2, b.size * (node.type === 'Country' ? 1.05 : node.class === 'places' ? 1.25 : 1.5));
       b.face.scale.set(f * (b.face.userData.aspect ?? 1), f, 1);
       // Emblems stay a little see-through; an orphan's flag or logo fades like its outline would.
       b.face.material.opacity = dim || !present ? 0.2 : orphan ? 0.4 : person ? 1 : 0.7;
@@ -594,14 +596,16 @@ export class GraphScene {
       const v = this.views.get(node.key)!;
       const dim = !!((hl && !hl.entities.has(node.key)) || (this.filter && !this.filter.has(node.key)));
       const s = statsFor(node, mirror ? 'both' : this.mode);
-      // On the story map only countries hang over the cells, as flags.
+      // On the story map no boxes or flags at all (they would cover stories);
+      // only countries keep a label, on their patch.
       const offMap = mirror && !(node.type === 'Country' && this.layouts.mirror.get(node.key)!.z > 0);
+      const noBox = mirror;
       const present = this.styleBox(v, node, s, dim, maxSize);
-      v.pickable = (present || !dim) && !offMap;
+      v.pickable = (present || !dim) && !noBox;
       // A face replaces the box; an invisible box would still write depth and hide it.
-      v.mesh.visible = v.outline.visible = !v.face && !offMap;
-      if (v.face) v.face.visible = !offMap;
-      if (offMap) v.halo.visible = false;
+      v.mesh.visible = v.outline.visible = !v.face && !noBox;
+      if (v.face) v.face.visible = !noBox;
+      if (noBox) v.halo.visible = false;
 
       const sd = node.sites.reisememo ?? null;
       const twinPresent = this.styleBox(v.twin, node, sd, dim, maxSize);
@@ -898,6 +902,11 @@ export class GraphScene {
     if (this.view === 'graph') targets.push(this.dome.mesh);
     if (this.view === 'mirror') targets.push(this.storyMap.mesh);
     const hits = this.raycaster.intersectObjects(targets, false);
+    // On the story map a story under a flag still wins: cells first, flags only on empty ground.
+    if (this.view === 'mirror') {
+      const cell = hits.find((h) => h.object === this.storyMap.mesh && h.faceIndex != null && this.storyMap.postAt(h.faceIndex));
+      if (cell) return this.storyMap.postAt(cell.faceIndex!);
+    }
     for (const hit of hits) {
       if (hit.object === this.dome.mesh) {
         const i = hit.faceIndex !== undefined && hit.faceIndex !== null ? this.dome.faceToPost[hit.faceIndex] : -1;
