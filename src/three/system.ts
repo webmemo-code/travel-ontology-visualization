@@ -49,6 +49,42 @@ function fadeTexture(): THREE.CanvasTexture {
   return new THREE.CanvasTexture(c);
 }
 
+const CONSUMER_RADIUS = 22;
+
+/** All orders of `n` items, for the small n of the readers' circle. */
+function permutations(n: number): number[][] {
+  if (n <= 1) return [[0].slice(0, n)];
+  return permutations(n - 1).flatMap((p) => Array.from({ length: n }, (_, i) => [...p.slice(0, i), n - 1, ...p.slice(i)]));
+}
+
+/**
+ * Even slots on a circle of `radius` for each item, minimising the summed
+ * horizontal distance from each item's slot to its targets. Exhaustive over
+ * orders and 1-degree rotations: exact, and cheap for a handful of items.
+ */
+export function placeOnCircle(targets: THREE.Vector3[][], radius: number): { x: number; z: number }[] {
+  const n = targets.length;
+  let best: { cost: number; order: number[]; turn: number } = { cost: Infinity, order: [], turn: 0 };
+  for (const order of permutations(n))
+    for (let deg = 0; deg < 360 / n; deg++) {
+      const turn = (deg * Math.PI) / 180;
+      let cost = 0;
+      order.forEach((item, slot) => {
+        const a = turn + (slot / n) * Math.PI * 2;
+        const x = Math.cos(a) * radius;
+        const z = Math.sin(a) * radius;
+        for (const t of targets[item]) cost += Math.hypot(t.x - x, t.z - z);
+      });
+      if (cost < best.cost) best = { cost, order, turn };
+    }
+  const out: { x: number; z: number }[] = new Array(n);
+  best.order.forEach((item, slot) => {
+    const a = best.turn + (slot / n) * Math.PI * 2;
+    out[item] = { x: Math.cos(a) * radius, z: Math.sin(a) * radius };
+  });
+  return out;
+}
+
 export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRadius: number) {
   const group = new THREE.Group();
   const labels: { text: string; pos: Vec3; color: string; px: number; priority: number }[] = [];
@@ -93,7 +129,7 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
   plate(CUBE_Y - r - 1.5, r + 4, 'SOURCE OF TRUTH');
   plate(TOWER_Y, 22, 'PUBLISHING');
   plate(OUTPUT_Y, 30, 'GENERATED OUTPUTS');
-  plate(CONSUMER_Y, 34, 'WHO READS IT');
+  plate(CONSUMER_Y, 30, 'WHO READS IT');
 
   const globeTop = new THREE.Vector3(0, CUBE_Y + r, 0);
   labels.push({ text: `Ontology · ${graph.nodes.length} entities in YAML`, pos: { x: r + 9, y: CUBE_Y, z: 0 }, color: '#FFD54F', px: 16, priority: 5000 });
@@ -212,10 +248,18 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     ['sys:travelers', 'Travelers', 'travelers', ['sys:html', 'sys:photos', 'sys:taxonomy']],
   ];
   const spheres = new Map<string, THREE.Vector3>();
+  // Readers sit on a circle above the outputs. Every order of readers around
+  // it, at every turn of the circle, is tried (5! x 360 is nothing), and the
+  // one with the shortest total beams down to the outputs each reader reads
+  // wins, so a reader hangs over what it reads.
+  const slots = placeOnCircle(
+    consumers.map(([, , , from]) => from.map((k) => base.get(k)!)),
+    CONSUMER_RADIUS,
+  );
   consumers.forEach(([key, title, field, from], i) => {
     const w = numbers?.consumers[field] ?? 0.6;
     const size = 1 + 2.6 * w;
-    const at = { x: (i - (consumers.length - 1) / 2) * 12, y: CONSUMER_Y, z: 0 };
+    const at = { x: slots[i].x, y: CONSUMER_Y, z: slots[i].z };
     const mesh = new THREE.Mesh(
       new THREE.IcosahedronGeometry(size, 1),
       new THREE.MeshStandardMaterial({ color: '#66BB6A', emissive: '#66BB6A', emissiveIntensity: 0.7, flatShading: true, transparent: true, opacity: 0.9 }),
@@ -224,7 +268,8 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     mesh.userData.key = key;
     group.add(mesh);
     pickables.push(mesh);
-    labels.push({ text: title, pos: { x: at.x, y: at.y + 2 * size + 1.2, z: at.z }, color: '#ffffff', px: 12, priority: 4000 });
+    // Labels sit outward of their sphere, so two spheres in line of sight keep both names.
+    labels.push({ text: title, pos: { x: at.x * 1.3, y: at.y + 2 * size + 1.2, z: at.z * 1.3 }, color: '#ffffff', px: 12, priority: 4000 });
     for (const k of from) segments.push([outTops[outputs.findIndex(([key]) => key === k)], v(at), 'up']);
     spheres.set(key, mesh.position.clone());
   });
