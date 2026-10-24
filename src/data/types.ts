@@ -67,4 +67,7 @@ export interface SystemNumbers {
   window_days: number;
   outputs: Record<string, number>;
   consumers: Record<string, number>;
+  /** Per consumer, `share_site`'s share of its volume, 0..1. */
+  share?: Record<string, number>;
+  share_site?: string;
 }

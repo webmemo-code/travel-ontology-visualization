@@ -17,5 +17,13 @@
   "ai-search": 0.67,
   "assistants": 0.19,
   "travelers": 0.99
+ },
+ "share_site": "travelmemo",
+ "share": {
+  "google": 0.05,
+  "ai-training": 0.66,
+  "ai-search": 0.99,
+  "assistants": 0.4,
+  "travelers": 0.31
  }
 }

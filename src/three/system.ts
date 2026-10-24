@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { geoEquirectangular, geoPath } from 'd3-geo';
 import type { Feature, Geometry } from 'geojson';
 import { domeDirection } from '../data/globe';
+import { withHorizonCull } from './depthFade';
 import type { Vec3 } from '../data/model';
 import type { Graph, SystemNumbers } from '../data/types';
 
@@ -31,7 +32,9 @@ export interface SystemTile {
 /** The globe layout, shrunk onto the bottom floor. */
 export function miniGlobePositions(globe: Map<string, Vec3>): Map<string, Vec3> {
   const pos = new Map<string, Vec3>();
-  for (const [k, p] of globe) pos.set(k, { x: p.x * MINI, y: CUBE_Y + p.y * MINI, z: p.z * MINI });
+  // Turned half a circle: the big globe faces Switzerland away from this
+  // scene's camera, and the mini globe should show Europe, not the Pacific.
+  for (const [k, p] of globe) pos.set(k, { x: -p.x * MINI, y: CUBE_Y + p.y * MINI, z: -p.z * MINI });
   return pos;
 }
 
@@ -89,7 +92,11 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
   const group = new THREE.Group();
   const labels: { text: string; pos: Vec3; color: string; px: number; priority: number }[] = [];
   const pickables: THREE.Mesh[] = [];
-  const segments: [THREE.Vector3, THREE.Vector3, string][] = [];
+  // Each beam carries its particles: how many (the volume it stands for) and
+  // which share of them are Travelmemo's (the rest Reisememo's).
+  const segments: { a: THREE.Vector3; b: THREE.Vector3; share: number; n: number }[] = [];
+  const maxPosts = Math.max(...graph.sites.map((x) => x.posts), 1);
+  const blogFlow = (i: number) => ({ share: i === 0 ? 1 : 0, n: Math.round(4 + 12 * (graph.sites[i]?.posts ?? 0) / maxPosts) });
   const v = (p: Vec3) => new THREE.Vector3(p.x, p.y, p.z);
   const fade = fadeTexture();
 
@@ -184,7 +191,7 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     });
     return new THREE.Vector3(x, TOWER_Y + h, 0);
   });
-  for (const t of towers) segments.push([globeTop, t.clone().setY(TOWER_Y), 'up']);
+  towers.forEach((t, i) => segments.push({ a: globeTop, b: t.clone().setY(TOWER_Y), ...blogFlow(i) }));
 
   // Generated outputs, on a circle so the links between them can show:
   // height = log of the items each one serves. Order keeps linked ones near.
@@ -237,7 +244,7 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
   const lgeo = new THREE.BufferGeometry();
   lgeo.setAttribute('position', new THREE.BufferAttribute(linkPositions, 3));
   group.add(new THREE.Points(lgeo, new THREE.PointsMaterial({ color: '#FFE0B2', size: 0.5, transparent: true, opacity: 0.95 })));
-  for (const o of outTops) for (const t of towers) segments.push([t, o.clone().setY(OUTPUT_Y), 'up']);
+  for (const o of outTops) towers.forEach((t, i) => segments.push({ a: t, b: o.clone().setY(OUTPUT_Y), ...blogFlow(i) }));
 
   // Who reads it: sphere size = relative monthly volume (log-scaled upstream).
   const consumers: [string, string, string, string[]][] = [
@@ -270,7 +277,9 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     pickables.push(mesh);
     // Labels sit outward of their sphere, so two spheres in line of sight keep both names.
     labels.push({ text: title, pos: { x: at.x * 1.3, y: at.y + 2 * size + 1.2, z: at.z * 1.3 }, color: '#ffffff', px: 12, priority: 4000 });
-    for (const k of from) segments.push([outTops[outputs.findIndex(([key]) => key === k)], v(at), 'up']);
+    // A reader's beams: particles as many as its monthly volume, split by blog.
+    const flow = { share: numbers?.share?.[field] ?? 0.5, n: Math.round(3 + 15 * w) };
+    for (const k of from) segments.push({ a: outTops[outputs.findIndex(([key]) => key === k)], b: v(at), ...flow });
     spheres.set(key, mesh.position.clone());
   });
   // Many travelers arrive through a search engine or an AI answer, not
@@ -295,24 +304,36 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
   rgeo.setAttribute('position', new THREE.BufferAttribute(refPositions, 3));
   group.add(new THREE.Points(rgeo, new THREE.PointsMaterial({ color: '#C8E6C9', size: 0.55, transparent: true, opacity: 0.95 })));
 
-  const beamGeo = new THREE.BufferGeometry().setFromPoints(segments.flatMap(([a, b]) => [a, b]));
+  const beamGeo = new THREE.BufferGeometry().setFromPoints(segments.flatMap(({ a, b }) => [a, b]));
   group.add(new THREE.LineSegments(beamGeo, new THREE.LineBasicMaterial({ color: '#4FC3F7', transparent: true, opacity: 0.18 })));
 
-  // Data particles: each rides one beam upward, staggered so the flow reads as continuous.
-  const count = segments.length * 10;
+  // Data particles in the blogs' colours. Per beam, Travelmemo's share of them
+  // is interleaved evenly with Reisememo's, so a 30/70 beam reads as such.
+  const riders: { seg: number; k0: number }[] = [];
+  const colors: number[] = [];
+  const tm = new THREE.Color('#4DD0E1');
+  const rm = new THREE.Color('#B39DDB');
+  segments.forEach((sg, seg) => {
+    for (let j = 0; j < sg.n; j++) {
+      riders.push({ seg, k0: j / sg.n + (seg % 7) * 0.13 });
+      const c = Math.floor((j + 1) * sg.share) > Math.floor(j * sg.share) ? tm : rm;
+      colors.push(c.r, c.g, c.b);
+    }
+  });
+  const count = riders.length;
   const positions = new Float32Array(count * 3);
   const pgeo = new THREE.BufferGeometry();
   pgeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-  const particles = new THREE.Points(pgeo, new THREE.PointsMaterial({ color: '#E1F5FE', size: 0.55, transparent: true, opacity: 0.95 }));
+  pgeo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  const particles = new THREE.Points(pgeo, new THREE.PointsMaterial({ vertexColors: true, size: 0.6, transparent: true, opacity: 0.95 }));
   group.add(particles);
   const tmp = new THREE.Vector3();
   const animate = (t: number) => {
-    for (let i = 0; i < count; i++) {
-      const [a, b] = segments[i % segments.length];
-      const k = (t * 0.25 + i / count + (i % 7) * 0.13) % 1;
-      tmp.lerpVectors(a, b, k);
+    riders.forEach(({ seg, k0 }, i) => {
+      const { a, b } = segments[seg];
+      tmp.lerpVectors(a, b, (t * 0.25 + k0) % 1);
       positions.set([tmp.x, tmp.y, tmp.z], i * 3);
-    }
+    });
     pgeo.attributes.position.needsUpdate = true;
     for (let i = 0; i < linkCount; i++) {
       arcs[i % arcs.length].getPoint((t * 0.3 + i / linkCount) % 1, tmp);
@@ -326,26 +347,28 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     rgeo.attributes.position.needsUpdate = true;
   };
 
-  /** Continents on the mini globe: the globe view's border segments, scaled down, and the coast drawn brighter on top. */
+  /**
+   * Continents on the mini globe: the globe view's border segments, scaled
+   * down, and the coast drawn brighter on top. Built around the globe's own
+   * origin so the horizon cull (as on the big globe) hides the far side.
+   */
   const setCoastlines = (segs: number[], coast: number[]) => {
-    const contour = new Float32Array(coast.length);
-    for (let i = 0; i < coast.length; i += 3) {
-      contour[i] = coast[i] * MINI * 1.004;
-      contour[i + 1] = CUBE_Y + coast[i + 1] * MINI * 1.004;
-      contour[i + 2] = coast[i + 2] * MINI * 1.004;
+    const r0 = globeRadius * MINI;
+    for (const [src, scale, color, opacity] of [
+      [segs, 1, '#9c7f35', 0.7],
+      [coast, 1.004, '#FFD54F', 0.95],
+    ] as const) {
+      const pts = new Float32Array(src.length);
+      for (let i = 0; i < src.length; i++) pts[i] = src[i] * MINI * scale;
+      const g = new THREE.BufferGeometry();
+      g.setAttribute('position', new THREE.BufferAttribute(pts, 3));
+      const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+      withHorizonCull(mat, r0);
+      const lines = new THREE.LineSegments(g, mat);
+      lines.position.y = CUBE_Y;
+      lines.rotation.y = Math.PI; // same half turn as miniGlobePositions
+      group.add(lines);
     }
-    const cg = new THREE.BufferGeometry();
-    cg.setAttribute('position', new THREE.BufferAttribute(contour, 3));
-    group.add(new THREE.LineSegments(cg, new THREE.LineBasicMaterial({ color: '#FFD54F', transparent: true, opacity: 0.95 })));
-    const pts = new Float32Array(segs.length);
-    for (let i = 0; i < segs.length; i += 3) {
-      pts[i] = segs[i] * MINI;
-      pts[i + 1] = CUBE_Y + segs[i + 1] * MINI;
-      pts[i + 2] = segs[i + 2] * MINI;
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.BufferAttribute(pts, 3));
-    group.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#9c7f35', transparent: true, opacity: 0.7 })));
   };
 
   /**
@@ -360,7 +383,7 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     c.height = 1024;
     const ctx = c.getContext('2d')!;
     const path = geoPath(geoEquirectangular().scale(2048 / (2 * Math.PI)).translate([1024, 512]), ctx);
-    ctx.fillStyle = 'rgba(201, 162, 74, 0.38)';
+    ctx.fillStyle = 'rgba(201, 162, 74, 0.62)';
     for (const f of features) {
       ctx.beginPath();
       path(f);
@@ -379,7 +402,7 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
       for (let j = 0; j <= cols; j++) {
         const lon = -180 + (360 * j) / cols;
         const d = domeDirection(lat, lon);
-        pos.push(d[0] * radius, CUBE_Y + d[1] * radius, d[2] * radius);
+        pos.push(d[0] * radius, d[1] * radius, d[2] * radius);
         uv.push(j / cols, 1 - i / rows);
       }
     }
@@ -393,7 +416,14 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     g.setIndex(index);
-    group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide })));
+    // Denser land, and only the near side: the far continents no longer show
+    // through as a mirrored second map.
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide });
+    withHorizonCull(mat, globeRadius * MINI);
+    const land = new THREE.Mesh(g, mat);
+    land.position.y = CUBE_Y;
+    land.rotation.y = Math.PI;
+    group.add(land);
   };
 
   return { group, labels, pickables, animate, setCoastlines, setLand };
