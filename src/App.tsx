@@ -58,6 +58,14 @@ export default function App() {
   return <Viewer graph={graph} />;
 }
 
+// Article titles and H2 outlines (public/headings.json), loaded the first time
+// an article or a search needs them; until then titles come from the URL slug.
+type ArticleDetail = { title: string; h2?: string[] };
+let DETAILS: Record<string, ArticleDetail> = {};
+let detailsRequested = false;
+const detailOf = (p: GraphPost): ArticleDetail | undefined => DETAILS[`${p.site}:${p.id}`];
+const titleOf = (p: GraphPost) => detailOf(p)?.title || slugTitle(p.url);
+
 function Viewer({ graph }: { graph: Graph }) {
   const host = useRef<HTMLDivElement>(null);
   const sceneRef = useRef<GraphScene | null>(null);
@@ -65,6 +73,7 @@ function Viewer({ graph }: { graph: Graph }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [hover, setHover] = useState<{ key: string; x: number; y: number } | null>(null);
   const [query, setQuery] = useState('');
+  const [, setDetailsLoaded] = useState(false);
   const [tourStep, setTourStep] = useState<number | null>(null);
   const [view, setView] = useState<View>('graph');
   // Read by the tour effect without re-running it when the stop itself changes the view.
@@ -141,6 +150,20 @@ function Viewer({ graph }: { graph: Graph }) {
   useEffect(() => {
     if (tourStep === null) sceneRef.current?.select(selected);
   }, [selected, tourStep]);
+  useEffect(() => {
+    if (detailsRequested || (!query && !(selected && posts.has(selected)))) return;
+    detailsRequested = true;
+    fetch('headings.json')
+      .then((r) => r.json())
+      .then((d: { posts: Record<string, ArticleDetail> }) => {
+        DETAILS = d.posts ?? {};
+        setDetailsLoaded(true);
+      })
+      .catch(() => {
+        detailsRequested = false; // offline or missing: slug titles stay
+      });
+  }, [query, selected, posts]);
+
   // Search: every query word must start a word of the name ("zer" finds Zermatt,
   // not SwitZERland; "park weggis" finds the Park Weggis article). Entities rank
   // a name that starts with the query first, then more articles.
@@ -162,10 +185,10 @@ function Viewer({ graph }: { graph: Graph }) {
   const postHits = useMemo(() => {
     if (!terms.length) return [];
     return postsFor(graph, mode)
-      .filter((p) => matches(slugTitle(p.url)))
+      .filter((p) => matches(`${titleOf(p)} ${titleOf(p)}`))
       .sort((a, b) => PERF_RANK[b.perf] - PERF_RANK[a.perf]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, graph, mode]);
+  }, [q, graph, mode, DETAILS]);
   // Up to 4 entities and 4 articles; whichever kind is missing gives its room to the other.
   const shownHits = hits.slice(0, postHits.length ? 4 : 8);
   const shownPosts = postHits.slice(0, 8 - shownHits.length);
@@ -282,7 +305,7 @@ function Viewer({ graph }: { graph: Graph }) {
                 <li key={postKey(p)}>
                   <button onClick={() => pickHit(postKey(p))}>
                     <span className="dot article" />
-                    {slugTitle(p.url)}
+                    {titleOf(p)}
                     <small>{p.site === 'travelmemo' ? 'Article EN' : 'Article DE'}</small>
                   </button>
                 </li>
@@ -457,7 +480,7 @@ function Viewer({ graph }: { graph: Graph }) {
           )}
           {hoverPost && (
             <>
-              <b>{slugTitle(hoverPost.url)}</b>
+              <b>{titleOf(hoverPost)}</b>
               <span>
                 {SITE_NAME[hoverPost.site]} · {PERF_TEXT[hoverPost.perf]}
               </span>
@@ -502,7 +525,7 @@ function Article({ post, byKey, onPick, photo }: { post: GraphPost; byKey: Map<s
     <aside className="hud details">
       {photo && <img className="hero" src={photo} alt="" loading="lazy" />}
       <small style={{ color: post.site === 'reisememo' ? '#B388FF' : '#26C6DA' }}>Article · {SITE_NAME[post.site]}</small>
-      <h2>{slugTitle(post.url)}</h2>
+      <h2>{titleOf(post)}</h2>
       <div className="badges">
         <span className={`perf ${post.perf}`}>{PERF_TEXT[post.perf]}</span>
         {post.cluster !== '_unclustered' && <span>need: {post.cluster}</span>}
@@ -516,6 +539,16 @@ function Article({ post, byKey, onPick, photo }: { post: GraphPost; byKey: Map<s
         <h3>Tagged with ({entities.length})</h3>
         {entities.map((n) => chipFor(n, labelFor(n, post.site), onPick))}
       </section>
+      {detailOf(post)?.h2 && (
+        <section>
+          <h3>In this article</h3>
+          <ol className="outline">
+            {detailOf(post)!.h2!.map((h) => (
+              <li key={h}>{h}</li>
+            ))}
+          </ol>
+        </section>
+      )}
     </aside>
   );
 }
@@ -625,7 +658,7 @@ function Details({
           {scoped.slice(0, 30).map((p) => (
             <li key={`${p.site}-${p.id}`}>
               <button className="linkish" onClick={() => onPick(postKey(p))}>
-                {slugTitle(p.url)}
+                {titleOf(p)}
               </button>
               <span className={`perf ${p.perf}`}>{p.site === 'reisememo' ? 'DE' : 'EN'}</span>
               {p.cluster !== '_unclustered' && <span className="cluster">{p.cluster}</span>}

@@ -144,3 +144,6 @@ a.ext:hover { text-decoration: underline; }
 .live-legend span { display: inline-flex; align-items: center; gap: 6px; }
 .live-legend i { flex: none; }
 .live-legend i.diamond { width: 7px; height: 7px; border: 2px solid; border-radius: 1px; transform: rotate(45deg); background: none; box-shadow: none; }
+
+.outline { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; line-height: 1.35; }
+.outline li::marker { color: var(--muted, #8a93a6); }
