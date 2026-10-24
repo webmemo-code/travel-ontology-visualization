@@ -299,11 +299,16 @@ const TIGHT = 0.5;
  * towards Switzerland, Restaurant stays up as the everywhere topic. Topics
  * sharing a hotspot fan out around it so they don't stack.
  */
-export function topicsOverHotspots(graph: Graph, pos: Map<string, Vec3>, fps: Map<string, Footprint>): Map<string, Vec3> {
+export function topicsOverHotspots(
+  graph: Graph,
+  pos: Map<string, Vec3>,
+  fps: Map<string, Footprint>,
+  classes = ['topics', 'organizations'],
+): Map<string, Vec3> {
   const out = new Map(pos);
   const sharing = new Map<string, string[]>();
   for (const n of graph.nodes) {
-    const h = n.class === 'topics' ? fps.get(n.key)?.hotspots[0] : undefined;
+    const h = classes.includes(n.class) ? fps.get(n.key)?.hotspots[0] : undefined;
     if (h && out.has(h.country)) sharing.set(h.country, [...(sharing.get(h.country) ?? []), n.key]);
   }
   for (const [country, keys] of sharing) {
@@ -322,6 +327,47 @@ export function topicsOverHotspots(graph: Graph, pos: Map<string, Vec3>, fps: Ma
       const over = norm(add(hot, add(scale(t1, fan * Math.cos(a)), scale(t2, fan * Math.sin(a)))));
       const d = norm(add(scale(sky, 1 - t), scale(over, t)));
       out.set(k, toVec(scale(d, 40 - 4 * t)));
+    });
+  }
+  return out;
+}
+
+export interface Headquarters {
+  city: string;
+  lat: number;
+  lon: number;
+}
+
+/**
+ * Hang each company over its headquarters. The cartogram has moved every
+ * country, so a raw coordinate would miss its patch; instead the company takes
+ * the direction of the nearest place we have, as that place now hangs (Kloten
+ * resolves to Zurich, Gaborone to Botswana). Companies sharing a spot fan out.
+ */
+export function orgsOverHeadquarters(graph: Graph, pos: Map<string, Vec3>, hq: Record<string, Headquarters>): Map<string, Vec3> {
+  const out = new Map(pos);
+  const places = graph.nodes.filter((n) => n.class === 'places' && n.geo && pos.has(n.key));
+  const sharing = new Map<string, string[]>();
+  for (const [k, h] of Object.entries(hq)) {
+    if (!out.has(k)) continue;
+    const at = ecef(h.lat, h.lon);
+    let best = '';
+    let bestDot = -2;
+    for (const p of places) {
+      const d = dot(at, ecef(p.geo!.lat, p.geo!.lon));
+      if (d > bestDot) [best, bestDot] = [p.key, d];
+    }
+    if (best) sharing.set(best, [...(sharing.get(best) ?? []), k]);
+  }
+  for (const [place, keys] of sharing) {
+    const p = pos.get(place)!;
+    const home = norm([p.x, p.y, p.z]);
+    const t1 = norm(cross(home, Math.abs(home[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]));
+    const t2 = cross(home, t1);
+    const fan = keys.length > 1 ? 0.05 : 0;
+    keys.forEach((k, i) => {
+      const a = (2 * Math.PI * i) / keys.length;
+      out.set(k, toVec(scale(norm(add(home, add(scale(t1, fan * Math.cos(a)), scale(t2, fan * Math.sin(a))))), 44)));
     });
   }
   return out;

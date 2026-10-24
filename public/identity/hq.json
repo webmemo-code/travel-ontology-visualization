@@ -1,0 +1,72 @@
+{
+ "organizations/25hours": {
+  "city": "Hamburg",
+  "lat": 53.55,
+  "lon": 10
+ },
+ "organizations/aman": {
+  "city": "Baar",
+  "lat": 47.196,
+  "lon": 8.526
+ },
+ "organizations/belmond": {
+  "city": "London",
+  "lat": 51.507,
+  "lon": -0.128
+ },
+ "organizations/booking-com": {
+  "city": "Amsterdam",
+  "lat": 52.366,
+  "lon": 4.898
+ },
+ "organizations/edelweiss-air": {
+  "city": "Kloten",
+  "lat": 47.448,
+  "lon": 8.583
+ },
+ "organizations/getyourguide": {
+  "city": "Berlin",
+  "lat": 52.517,
+  "lon": 13.383
+ },
+ "organizations/leading-hotels-of-the-world": {
+  "city": "New York City",
+  "lat": 40.713,
+  "lon": -74.006
+ },
+ "organizations/mgb": {
+  "city": "Brig-Glis",
+  "lat": 46.316,
+  "lon": 7.988
+ },
+ "organizations/movenpick": {
+  "city": "Zurich",
+  "lat": 47.188,
+  "lon": 8.515
+ },
+ "organizations/relais-chateaux": {
+  "city": "Paris",
+  "lat": 48.857,
+  "lon": 2.352
+ },
+ "organizations/rhb": {
+  "city": "Chur",
+  "lat": 46.852,
+  "lon": 9.533
+ },
+ "organizations/swiss-international-air-lines": {
+  "city": "Kloten",
+  "lat": 47.452,
+  "lon": 8.577
+ },
+ "organizations/viator": {
+  "city": "Needham",
+  "lat": 42.283,
+  "lon": -71.233
+ },
+ "organizations/wilderness-safaris": {
+  "city": "Gaborone",
+  "lat": -24.657,
+  "lon": 25.909
+ }
+}

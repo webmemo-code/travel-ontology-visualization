@@ -16,7 +16,7 @@ import type { LiveBySite } from '../data/live';
 import { buildSystem, cubePositions } from './system';
 import { buildDome, type AtlasIndex, type Dome } from './dome';
 import { haloTexture, makeEmblem, makePortrait } from './portrait';
-import { DOME_R, domeDirection, domeLayout, placesOverTiles, postKey, topicsOverHotspots } from '../data/globe';
+import { DOME_R, domeDirection, domeLayout, orgsOverHeadquarters, placesOverTiles, postKey, topicsOverHotspots, type Headquarters } from '../data/globe';
 import { footprints, liftByCountry, type Footprint } from '../data/footprint';
 import type { Atlas } from '../data/atlas';
 import { WALL_X, bridgeKind, mirrorSlots, wallPositions } from '../data/mirror';
@@ -185,7 +185,8 @@ export class GraphScene {
       return f === undefined ? null : { center: this.dome.centers[f].toArray() as [number, number, number], region: this.dome.faceRegion[f] };
     });
     this.layouts = {
-      // Topics hang over where they are over-represented, judged on both blogs.
+      // Topics and companies hang over where they are over-represented, judged
+      // on both blogs; companies with a known headquarters move there once it loads.
       graph: topicsOverHotspots(graph, domePos, this.footprintsFor('both')),
       system: cubePositions(graph),
       mirror: wallPositions(graph, -1),
@@ -205,6 +206,7 @@ export class GraphScene {
     this.showViewDecor();
     this.applyStyle();
     void this.loadImages();
+    void this.loadHeadquarters();
 
     const el = this.renderer.domElement;
     el.addEventListener('pointermove', this.onPointerMove);
@@ -377,6 +379,19 @@ export class GraphScene {
   }
 
   /** Flags, logos and the article photo atlas arrive after first paint; the scene works without them. */
+  /** Companies move over their headquarters; one without stays on its footprint. */
+  private async loadHeadquarters() {
+    try {
+      const hq: Record<string, Headquarters> = await fetch('identity/hq.json').then((r) => r.json());
+      this.layouts.graph = orgsOverHeadquarters(this.graph, this.layouts.graph, hq);
+      if (this.view !== 'graph' || this.morph) return;
+      const from = new Map([...this.views.values()].map((v) => [v.key, { ...v.base }]));
+      this.morph = { from, twinFrom: new Map(from), t0: performance.now(), ms: 1200 };
+    } catch {
+      // no headquarters file: companies keep their footprint position
+    }
+  }
+
   private async loadImages() {
     try {
       const credits: Record<string, { image: string; kind?: 'flag' | 'logo' | 'arms' }> = await fetch('identity/credits.json').then((r) => r.json());
