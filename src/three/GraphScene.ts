@@ -571,6 +571,21 @@ export class GraphScene {
     const maxSize = this.view === 'system' ? 1.9 : mirror ? 2.6 : 3.6;
     const ranked = [...this.graph.nodes].sort((a, b) => (statsFor(b, this.mode)?.posts ?? 0) - (statsFor(a, this.mode)?.posts ?? 0));
     const rank = new Map(ranked.map((n, i) => [n.key, i]));
+    // Label tiers (see label.ts): the main countries and the most local topics read from afar.
+    const topCountries = new Set(ranked.filter((n) => n.type === 'Country').slice(0, 8).map((n) => n.key));
+    const topTopics = new Set(
+      [...this.footprintsFor('both')]
+        .filter(([k]) => this.nodes.get(k)?.class === 'topics')
+        .sort((a, b) => b[1].concentration - a[1].concentration)
+        .slice(0, 5)
+        .map(([k]) => k),
+    );
+    const tierOf = (n: GraphNode) =>
+      n.class === 'people' || topCountries.has(n.key) || topTopics.has(n.key) || (n.class === 'places' && n.depth === 0)
+        ? 0
+        : n.type === 'Country' || n.class === 'topics' || n.class === 'organizations'
+          ? 1
+          : 2;
 
     for (const node of this.graph.nodes) {
       const v = this.views.get(node.key)!;
@@ -590,13 +605,16 @@ export class GraphScene {
       // Labels: every entity is a candidate; priority decides who survives the overlap cull.
       const orphan = !s || s.status === 'orphan';
       const bonus = node.class === 'people' ? 400 : node.class === 'trips' ? 300 : node.depth === 0 && node.class === 'places' ? 250 : 0;
-      let priority = 1000 - (rank.get(node.key) ?? 999) + bonus - (orphan ? 800 : 0);
+      // A main country beats its continent: Europe hangs right in front of Switzerland.
+      let priority = 1000 - (rank.get(node.key) ?? 999) + bonus + (topCountries.has(node.key) ? 300 : 0) - (orphan ? 800 : 0);
       if (this.filter?.has(node.key)) priority += 4000;
       if (hl?.entities.has(node.key)) priority += 5000;
       if (node.key === this.selected) priority += 20000;
       const showMain = this.view !== 'system' && !(dim && !this.filter?.has(node.key)) && (present || this.filter?.has(node.key));
       const text = mirror ? labelFor(node, 'travelmemo') : labelFor(node, this.mode);
-      this.labels.set(node.key, showMain ? text : null, this.anchor(v), priority, { px: node.key === this.selected ? 18 : 14 });
+      // The selection, its neighbours and search hits always read, whatever their tier.
+      const tier = hl?.entities.has(node.key) || this.filter?.has(node.key) ? 0 : tierOf(node);
+      this.labels.set(node.key, showMain ? text : null, this.anchor(v), priority, { px: node.key === this.selected ? 18 : 14, tier });
       this.labels.set(`twin:${node.key}`, mirror && twinPresent && !dim ? labelFor(node, 'reisememo') : null, this.anchor(v.twin), priority, {
         px: 14,
         views: ['mirror'],
@@ -961,7 +979,8 @@ export class GraphScene {
     if (this.morph) this.stepMorph();
     if (this.system.group.visible) this.system.animate(t);
     if (this.live.group.visible) this.live.tick(t);
-    this.depthFade(this.dome.group.visible ? this.dome.updateLod(this.camera) : null);
+    const fade = this.dome.group.visible ? this.dome.updateLod(this.camera) : null;
+    this.depthFade(fade);
     const sky = this.photoSky.material;
     sky.opacity += (this.photoSkyTarget - sky.opacity) * 0.04;
     const v = this.selected ? this.views.get(this.selected) : undefined;
@@ -981,7 +1000,7 @@ export class GraphScene {
     const outside = this.view === 'graph' && eye.length() > DOME_R;
     this.labels.update(this.camera, w, h, this.view, outside
       ? (key, p) => !this.lit?.has(key) && p.x * eye.x + p.y * eye.y + p.z * eye.z < 0
-      : undefined);
+      : undefined, fade);
     this.bloom.composer.render();
     this.renderer.autoClear = false;
     this.renderer.clearDepth();
