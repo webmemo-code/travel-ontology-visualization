@@ -13,7 +13,7 @@ import { createBloomComposer, type BloomComposerResult } from './bloomComposer';
 import { Labels } from './label';
 import { LiveLayer } from './live';
 import type { LiveBySite } from '../data/live';
-import { buildSystem, cubePositions } from './system';
+import { buildSystem, miniGlobePositions } from './system';
 import { buildDome, type AtlasIndex, type Dome } from './dome';
 import { haloTexture, makeEmblem, makePortrait } from './portrait';
 import { DOME_R, domeDirection, domeLayout, orgsOverHeadquarters, placesOverTiles, postKey, topicsOverHotspots, type Headquarters } from '../data/globe';
@@ -185,11 +185,12 @@ export class GraphScene {
       const f = this.dome.postFace.get(postKey(graph.posts[i]));
       return f === undefined ? null : { center: this.dome.centers[f].toArray() as [number, number, number], region: this.dome.faceRegion[f] };
     });
+    // Topics and companies hang over where they are over-represented, judged
+    // on both blogs; companies with a known headquarters move there once it loads.
+    const globe = topicsOverHotspots(graph, domePos, this.footprintsFor('both'));
     this.layouts = {
-      // Topics and companies hang over where they are over-represented, judged
-      // on both blogs; companies with a known headquarters move there once it loads.
-      graph: topicsOverHotspots(graph, domePos, this.footprintsFor('both')),
-      system: cubePositions(graph),
+      graph: globe,
+      system: miniGlobePositions(globe),
       mirror: wallPositions(graph, -1),
       mirrorDe: wallPositions(graph, 1),
     };
@@ -199,7 +200,7 @@ export class GraphScene {
     this.buildNodes();
     this.buildLinks();
     this.buildMirror();
-    this.system = buildSystem(graph);
+    this.system = buildSystem(graph, graph.system ?? null, DOME_R);
     this.system.labels.forEach((l, i) => this.labels.set(`sys-label:${i}`, l.text, l.pos, l.priority, { px: l.px, color: l.color, views: ['system'], always: true }));
     this.dome.group.add(this.ghost, this.ghostFocus);
     this.scene.add(this.dome.group, this.links, this.focusLinks, this.hotLines, this.mirrorDecor, this.system.group, this.live.group);
@@ -582,7 +583,7 @@ export class GraphScene {
     b.halo.material.opacity = tier === 'top10' ? 0.6 : 0.3;
     if (b.face) {
       const person = node.class === 'people';
-      const f = this.view === 'system' ? 2.2 : this.view === 'mirror' ? 2.8 : person ? 6.5 : Math.max(2.2, b.size * (node.type === 'Country' ? 1.05 : node.class === 'places' ? 1.25 : 1.5));
+      const f = this.view === 'system' ? 1.3 : this.view === 'mirror' ? 2.8 : person ? 6.5 : Math.max(2.2, b.size * (node.type === 'Country' ? 1.05 : node.class === 'places' ? 1.25 : 1.5));
       b.face.scale.set(f * (b.face.userData.aspect ?? 1), f, 1);
       // Emblems stay a little see-through; an orphan's flag or logo fades like its outline would.
       b.face.material.opacity = dim || !present ? 0.2 : orphan ? 0.4 : person ? 1 : 0.7;
@@ -594,7 +595,7 @@ export class GraphScene {
     const hl = this.highlight();
     this.lit = hl?.entities ?? null;
     const mirror = this.view === 'mirror';
-    const maxSize = this.view === 'system' ? 1.9 : mirror ? 2.6 : 3.6;
+    const maxSize = this.view === 'system' ? 1.1 : mirror ? 2.6 : 3.6;
     const ranked = [...this.graph.nodes].sort((a, b) => (statsFor(b, this.mode)?.posts ?? 0) - (statsFor(a, this.mode)?.posts ?? 0));
     const rank = new Map(ranked.map((n, i) => [n.key, i]));
     // Label tiers (see label.ts): the main countries and the most local topics read from afar.

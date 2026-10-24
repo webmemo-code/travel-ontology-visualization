@@ -18,25 +18,25 @@ const cam = (p: [number, number, number], t: [number, number, number]): CameraKe
 
 export const TOUR: TourStop[] = [
   {
-    title: 'It starts with one cube',
-    text: 'Every place, topic, company and author our travel blogs write about is one small file in a shared ontology. Together they form this cube: the single source of truth.',
+    title: 'It starts with one small globe',
+    text: 'Every place, topic, company and author our travel blogs write about is one small file in a shared ontology. Together they form this small globe: the single source of truth.',
     view: 'system',
     camera: cam([30, -6, 34], [0, -14, 0]),
   },
   {
     title: 'Two blogs draw from it',
-    text: 'Travelmemo (English) and Reisememo (German) tag their articles with entities from the same cube. The tower height shows how many articles each blog has.',
+    text: 'Travelmemo (English) and Reisememo (German) tag their articles with entities from the same ontology. The tower height shows how many articles each blog has.',
     view: 'system',
     camera: cam([0, 16, 52], [0, 6, 0]),
   },
   {
     title: 'One source, many outputs',
-    text: 'From the cube and the tags we generate structured data for Google, an EntityMap and llms.txt for AI crawlers, and a knowledge bundle for every article. Nothing is maintained twice.',
+    text: 'From the ontology and the tags we generate the pages and images people see, structured data for Google, an EntityMap and llms.txt for AI crawlers, and a knowledge bundle for every article. Box height shows how many items each serves. Nothing is maintained twice.',
     view: 'system',
     camera: cam([0, 40, 64], [0, 26, 0]),
   },
   {
-    title: 'The cube unfolds into a globe',
+    title: 'The small globe grows into the big one',
     text: 'Every tile on its skin is one article, showing the article’s own photo: turquoise frames for English, violet for German. Gold lines trace the real coastlines.',
   },
   {

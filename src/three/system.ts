@@ -1,14 +1,21 @@
 // Scene 1, "the stack": how one ontology becomes everything the sites
-// publish. The entity boxes themselves morph into the cube on the bottom floor;
-// this module builds the floors above it and the beams particles travel along.
+// publish. The entity boxes themselves morph into a mini globe on the bottom
+// floor (the globe view, scaled down); this module builds the floors above it
+// and the beams particles travel along.
+//
+// Heights and sizes carry data from public/system.json: an output box is as
+// tall as the log of how many items it serves, and a reader sphere is as big
+// as its (log-scaled, relative) monthly volume. Without that file the scene
+// falls back to even sizes.
 import * as THREE from 'three';
 import type { Vec3 } from '../data/model';
-import type { Graph } from '../data/types';
+import type { Graph, SystemNumbers } from '../data/types';
 
 export const CUBE_Y = -16;
+const MINI = 0.2; // the mini globe is the globe view at a fifth of its size
 const TOWER_Y = 4;
 const OUTPUT_Y = 22;
-const CONSUMER_Y = 36;
+const CONSUMER_Y = 38;
 
 export interface SystemTile {
   key: string;
@@ -16,45 +23,45 @@ export interface SystemTile {
   at: Vec3;
 }
 
-/** A literal cube: entities packed class by class into a 7-wide grid. */
-export function cubePositions(graph: Graph): Map<string, Vec3> {
-  const order = ['people', 'trips', 'organizations', 'topics', 'places'];
-  const nodes = [...graph.nodes].sort(
-    (a, b) => (order.indexOf(a.class) - order.indexOf(b.class)) || b.depth - a.depth || a.key.localeCompare(b.key),
-  );
-  const side = 7;
-  const layers = Math.ceil(nodes.length / (side * side));
-  const gap = 2.3;
+/** The globe layout, shrunk onto the bottom floor. */
+export function miniGlobePositions(globe: Map<string, Vec3>): Map<string, Vec3> {
   const pos = new Map<string, Vec3>();
-  nodes.forEach((n, i) => {
-    const layer = Math.floor(i / (side * side));
-    const r = i % (side * side);
-    pos.set(n.key, {
-      x: ((r % side) - (side - 1) / 2) * gap,
-      y: CUBE_Y + (layer - (layers - 1) / 2) * gap,
-      z: (Math.floor(r / side) - (side - 1) / 2) * gap,
-    });
-  });
+  for (const [k, p] of globe) pos.set(k, { x: p.x * MINI, y: CUBE_Y + p.y * MINI, z: p.z * MINI });
   return pos;
 }
 
-export function buildSystem(graph: Graph) {
+/** Opaque centre fading to clear at the rim, like the Periodic Cube's panes. */
+function fadeTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const ctx = c.getContext('2d')!;
+  const g = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+  g.addColorStop(0, 'rgba(255,255,255,0.9)');
+  g.addColorStop(0.55, 'rgba(255,255,255,0.45)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 256, 256);
+  return new THREE.CanvasTexture(c);
+}
+
+export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRadius: number) {
   const group = new THREE.Group();
   const labels: { text: string; pos: Vec3; color: string; px: number; priority: number }[] = [];
   const pickables: THREE.Mesh[] = [];
   const segments: [THREE.Vector3, THREE.Vector3, string][] = [];
   const v = (p: Vec3) => new THREE.Vector3(p.x, p.y, p.z);
+  const fade = fadeTexture();
 
   const plate = (y: number, r: number, name: string) => {
     const ring = new THREE.Mesh(
       new THREE.RingGeometry(r - 0.1, r + 0.1, 128),
-      new THREE.MeshBasicMaterial({ color: '#29B6F6', transparent: true, opacity: 0.4, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({ color: '#29B6F6', transparent: true, opacity: 0.15, side: THREE.DoubleSide }),
     );
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = y;
     const disc = new THREE.Mesh(
       new THREE.CircleGeometry(r, 96),
-      new THREE.MeshBasicMaterial({ color: '#0D47A1', transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ color: '#1565C0', map: fade, transparent: true, opacity: 0.3, side: THREE.DoubleSide, depthWrite: false }),
     );
     disc.rotation.x = -Math.PI / 2;
     disc.position.y = y - 0.02;
@@ -72,56 +79,103 @@ export function buildSystem(graph: Graph) {
     group.add(mesh, edges);
     pickables.push(mesh);
     labels.push({ text: t.title, pos: { x: t.at.x, y: t.at.y + h + 0.4, z: t.at.z }, color: '#ffffff', px: 12, priority: 4000 });
-    return new THREE.Vector3(t.at.x, t.at.y, t.at.z);
+    return mesh;
   };
 
-  plate(CUBE_Y - 9.5, 14, 'SOURCE OF TRUTH');
+  // The source of truth is the globe itself, small: a faint wire sphere the
+  // entity boxes settle into.
+  const r = globeRadius * MINI;
+  const wire = new THREE.LineSegments(
+    new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(r, 3)),
+    new THREE.LineBasicMaterial({ color: '#4FC3F7', transparent: true, opacity: 0.12 }),
+  );
+  wire.position.y = CUBE_Y;
+  group.add(wire);
+  plate(CUBE_Y - r - 1.5, r + 4, 'SOURCE OF TRUTH');
   plate(TOWER_Y, 22, 'PUBLISHING');
-  plate(OUTPUT_Y, 34, 'GENERATED OUTPUTS');
-  plate(CONSUMER_Y, 34, 'WHO READS IT');
+  plate(OUTPUT_Y, 42, 'GENERATED OUTPUTS');
+  plate(CONSUMER_Y, 36, 'WHO READS IT');
 
-  const cubeTop = new THREE.Vector3(0, CUBE_Y + 6, 0);
-  labels.push({ text: `Ontology · ${graph.nodes.length} entities in YAML`, pos: { x: 0, y: CUBE_Y + 9, z: 0 }, color: '#FFD54F', px: 16, priority: 5000 });
+  const globeTop = new THREE.Vector3(0, CUBE_Y + r, 0);
+  labels.push({ text: `Ontology · ${graph.nodes.length} entities in YAML`, pos: { x: 0, y: CUBE_Y + r + 2.5, z: 0 }, color: '#FFD54F', px: 16, priority: 5000 });
 
+  // Publishing: each blog a tower as tall as its article count, wearing its logo.
+  const logos = new THREE.TextureLoader();
   const towers = graph.sites.map((s, i) => {
     const h = Math.max(2, s.posts / 70);
     const x = (i === 0 ? -1 : 1) * 11;
     const color = i === 0 ? '#26C6DA' : '#7E57C2';
-    return tile({ key: `sys:site:${s.key}`, title: `${s.name} · ${s.posts}`, at: { x, y: TOWER_Y, z: 0 } }, color, 6, h, 6)
-      .setY(TOWER_Y + h);
+    tile({ key: `sys:site:${s.key}`, title: `${s.name} · ${s.posts}`, at: { x, y: TOWER_Y, z: 0 } }, color, 6, h, 6);
+    // The logo is light text on a transparent PNG: give it a dark badge, sized to
+    // the logo's own aspect once it has loaded, on each side face near the top.
+    const face = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
+    const badge = new THREE.MeshBasicMaterial({ color: '#0b1020', transparent: true, opacity: 0.88, depthWrite: false });
+    const planes: THREE.Mesh[] = [];
+    for (let k = 0; k < 4; k++) {
+      const a = (k * Math.PI) / 2;
+      const back = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), badge);
+      const logo = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), face);
+      for (const [m, off, order] of [[back, 3.02, 2], [logo, 3.04, 3]] as const) {
+        m.position.set(x + Math.sin(a) * off, TOWER_Y + h - 1.8, Math.cos(a) * off);
+        m.rotation.y = a;
+        m.renderOrder = order; // after the see-through tower, or it washes them out
+        group.add(m);
+      }
+      planes.push(back, logo);
+    }
+    logos.load(`identity/organizations-${s.key}.png`, (tex) => {
+      tex.colorSpace = THREE.SRGBColorSpace;
+      face.map = tex;
+      face.needsUpdate = true;
+      const aspect = tex.image.width / tex.image.height;
+      const w = 5.2;
+      planes.forEach((p, i) => p.scale.set(i % 2 ? w : w + 0.5, i % 2 ? w / aspect : w / aspect + 0.5, 1));
+    });
+    return new THREE.Vector3(x, TOWER_Y + h, 0);
   });
-  for (const t of towers) segments.push([cubeTop, t.clone().setY(TOWER_Y), 'up']);
+  for (const t of towers) segments.push([globeTop, t.clone().setY(TOWER_Y), 'up']);
 
-  const outputs: [string, string][] = [
-    ['sys:jsonld', 'JSON-LD'],
-    ['sys:taxonomy', 'Taxonomies'],
-    ['sys:entitymap', 'EntityMap'],
-    ['sys:llmstxt', 'llms.txt'],
-    ['sys:okf', 'OKF bundle'],
+  // Generated outputs: height = log of the items each one serves.
+  const outputs: [string, string, string][] = [
+    ['sys:html', 'HTML pages', 'html'],
+    ['sys:images', 'Images', 'images'],
+    ['sys:jsonld', 'JSON-LD', 'jsonld'],
+    ['sys:taxonomy', 'Taxonomies', 'taxonomy'],
+    ['sys:entitymap', 'EntityMap', 'entitymap'],
+    ['sys:llmstxt', 'llms.txt', 'llms'],
+    ['sys:okf', 'OKF bundle', 'okf'],
   ];
-  const outTops = outputs.map(([key, title], i) => {
-    const at = { x: (i - (outputs.length - 1) / 2) * 14, y: OUTPUT_Y, z: 0 };
-    return tile({ key, title, at }, '#FF8F00', 5, 2.4, 5).setY(OUTPUT_Y + 2.4);
+  const outTops = outputs.map(([key, title, field], i) => {
+    const n = numbers?.outputs[field];
+    // Log, offset so the smallest (llms.txt, ~120) still reads as a box and
+    // each tenfold step adds the same height: images stand clearly tallest.
+    const h = n ? Math.max(1, 1 + 2.6 * (Math.log10(n) - 1.8)) : 2.4;
+    const at = { x: (i - (outputs.length - 1) / 2) * 10.5, y: OUTPUT_Y, z: 0 };
+    tile({ key, title: n ? `${title} · ${n.toLocaleString('en')}` : title, at }, '#FF8F00', 4.5, h, 4.5);
+    return new THREE.Vector3(at.x, OUTPUT_Y + h, at.z);
   });
   for (const o of outTops) for (const t of towers) segments.push([t, o.clone().setY(OUTPUT_Y), 'up']);
 
-  const consumers: [string, string, number[]][] = [
-    ['sys:google', 'Google Search', [0, 1]],
-    ['sys:ai-search', 'AI search', [0, 2, 3, 4]],
-    ['sys:assistants', 'AI assistants', [2, 3, 4]],
-    ['sys:readers', 'Readers', [1]],
+  // Who reads it: sphere size = relative monthly volume (log-scaled upstream).
+  const consumers: [string, string, string, number[]][] = [
+    ['sys:google', 'Google Search', 'google', [0, 1, 2, 3]],
+    ['sys:ai-search', 'AI search', 'ai-search', [0, 2, 4, 5, 6]],
+    ['sys:assistants', 'AI assistants', 'assistants', [0, 4, 5, 6]],
+    ['sys:travelers', 'Travelers', 'travelers', [0, 1, 3]],
   ];
-  consumers.forEach(([key, title, from], i) => {
+  consumers.forEach(([key, title, field, from], i) => {
+    const w = numbers?.consumers[field] ?? 0.6;
+    const size = 1 + 2.6 * w;
     const at = { x: (i - 1.5) * 16, y: CONSUMER_Y, z: 0 };
     const mesh = new THREE.Mesh(
-      new THREE.IcosahedronGeometry(2.2, 1),
+      new THREE.IcosahedronGeometry(size, 1),
       new THREE.MeshStandardMaterial({ color: '#66BB6A', emissive: '#66BB6A', emissiveIntensity: 0.7, flatShading: true, transparent: true, opacity: 0.9 }),
     );
-    mesh.position.set(at.x, at.y + 2.2, at.z);
+    mesh.position.set(at.x, at.y + size, at.z);
     mesh.userData.key = key;
     group.add(mesh);
     pickables.push(mesh);
-    labels.push({ text: title, pos: { x: at.x, y: at.y + 4.6, z: at.z }, color: '#ffffff', px: 12, priority: 4000 });
+    labels.push({ text: title, pos: { x: at.x, y: at.y + 2 * size + 1.2, z: at.z }, color: '#ffffff', px: 12, priority: 4000 });
     for (const j of from) segments.push([outTops[j], v(at), 'up']);
   });
 

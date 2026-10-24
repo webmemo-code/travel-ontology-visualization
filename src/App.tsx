@@ -48,9 +48,13 @@ export default function App() {
   const [graph, setGraph] = useState<Graph | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
+    // system.json is optional: without it "How it works" falls back to even sizes.
+    const system = fetch('system.json')
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
     fetch('graph.json')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`graph.json: HTTP ${r.status}`))))
-      .then(setGraph)
+      .then(async (g: Graph) => setGraph({ ...g, system: await system }))
       .catch((e: Error) => setError(e.message));
   }, []);
   if (error) return <div className="splash">Could not load the graph: {error}</div>;
@@ -438,7 +442,7 @@ function Viewer({ graph }: { graph: Graph }) {
                 </p>
               </details>
             ) : (
-              <p>Size = articles · Halo = top search performer · Outline = no article yet</p>
+              <p>Box height = items each output serves · Sphere = monthly readers, relative · both on a log scale</p>
             )}
           </>
         )}

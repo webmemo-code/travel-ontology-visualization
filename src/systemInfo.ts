@@ -58,8 +58,16 @@ export const SYSTEM_INFO: Record<string, SystemInfo> = {
     title: 'AI assistants',
     text: 'When someone asks an assistant about hiking near Zermatt, clean entities and self-contained passages make our articles easy to cite accurately.',
   },
-  'sys:readers': {
-    title: 'Readers',
-    text: 'The same structure powers what people see: destination pages, related articles, and links between the English and German versions of a story.',
+  'sys:travelers': {
+    title: 'Travelers',
+    text: 'People planning a trip. The same structure powers what they see: destination pages, related articles, and links between the English and German versions of a story. Sphere sizes compare monthly volume on a log scale: travelers (GA4 users), Google (search clicks) and AI fetches. AI fetches are a floor: cached article pages are served without our code, so only AI reads of the AI files (llms.txt, EntityMap, OKF) are counted.',
+  },
+  'sys:html': {
+    title: 'HTML pages',
+    text: 'The articles themselves, as people and search engines see them. Box heights compare item counts on a log scale.',
+  },
+  'sys:images': {
+    title: 'Images',
+    text: 'The photos in the media library, each counted once: the resized versions WordPress makes of a photo are the same image. Captions, keywords and credits travel with them into the OKF bundle.',
   },
 };

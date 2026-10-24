@@ -57,4 +57,14 @@ export interface Graph {
   nodes: GraphNode[];
   edges: GraphEdge[];
   posts: GraphPost[];
+  /** public/system.json, attached by the app when it loads; absent offline. */
+  system?: SystemNumbers | null;
+}
+
+/** public/system.json ("ontology-cube/system@1"): output counts, consumer weights 0..1. */
+export interface SystemNumbers {
+  as_of: string;
+  window_days: number;
+  outputs: Record<string, number>;
+  consumers: Record<string, number>;
 }
