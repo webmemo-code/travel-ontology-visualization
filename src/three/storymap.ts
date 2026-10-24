@@ -63,6 +63,33 @@ export function buildStoryMap(cells: StoryCell[]): StoryMap {
   );
   group.add(mesh, outline);
 
+  // Country borders on the map: an edge wherever a cell's neighbour belongs to
+  // another country or is empty, so patches that run into each other (Germany,
+  // Switzerland, Italy) still read as separate countries.
+  const keyOf = (x: number, y: number) => `${Math.round(x / CELL)},${Math.round(y / CELL)}`;
+  const owner = new Map(cells.map((c) => [keyOf(c.x, c.y), c.country ?? '']));
+  const h = CELL / 2;
+  const borders: number[] = [];
+  const z = Z_CELLS + 0.02;
+  for (const c of cells) {
+    const mine = c.country ?? '';
+    for (const [dx, dy, ax, ay, bx, by] of [
+      [0, 1, -h, h, h, h],
+      [0, -1, -h, -h, h, -h],
+      [-1, 0, -h, -h, -h, h],
+      [1, 0, h, -h, h, h],
+    ] as const) {
+      if (owner.get(keyOf(c.x + dx * CELL, c.y + dy * CELL)) === mine) continue;
+      borders.push(c.x + ax, c.y + ay, z, c.x + bx, c.y + by, z);
+    }
+  }
+  group.add(
+    new THREE.LineSegments(
+      new THREE.BufferGeometry().setAttribute('position', new THREE.Float32BufferAttribute(borders, 3)),
+      new THREE.LineBasicMaterial({ color: '#9FB4CA', transparent: true, opacity: 0.8 }),
+    ),
+  );
+
   const en = new THREE.Color(EN_COLOR);
   const de = new THREE.Color(DE_COLOR);
   const paint = (lit: Set<string> | null) => {
