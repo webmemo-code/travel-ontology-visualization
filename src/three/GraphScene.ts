@@ -29,7 +29,8 @@ const MAX_STEP = Math.cos((12 * Math.PI) / 180);
 
 /** True borders on the same rotated globe, as line segments just inside the skin. */
 function borderSegments(geometry: Geometry, out: number[]) {
-  const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.type === 'MultiPolygon' ? geometry.coordinates : [];
+  // A coastline mesh is a MultiLineString: treat each line as one ring.
+  const polys = geometry.type === 'Polygon' ? [geometry.coordinates] : geometry.type === 'MultiPolygon' ? geometry.coordinates : geometry.type === 'MultiLineString' ? [geometry.coordinates] : [];
   for (const poly of polys) {
     for (const ring of poly) {
       let prev: [number, number, number] | null = null;
@@ -57,7 +58,7 @@ const kf = (p: [number, number, number], t: [number, number, number]): CameraKey
   target: { x: t[0], y: t[1], z: t[2] },
 });
 export const HOMES: Record<View, CameraKeyframe> = {
-  system: kf([62, 62, 92], [0, 12, 0]),
+  system: kf([52, 62, 92], [-10, 12, 0]),
   // Outside, facing Switzerland: the view that reads like the globe we know.
   graph: kf([28, 30, -142], [0, 2, 0]),
   mirror: kf([0, 12, 84], [0, 4, 0]),
@@ -501,7 +502,9 @@ export class GraphScene {
       lines.renderOrder = -1;
       this.ghost.add(lines);
     }
-    this.system.setCoastlines([...faint, ...ours]);
+    const coast: number[] = [];
+    borderSegments(atlas.coast, coast);
+    this.system.setCoastlines([...faint, ...ours], coast);
     this.system.setLand(atlas.features);
     this.refreshGhostFocus();
     this.refreshLive(); // readers are placed by country, which needs the atlas

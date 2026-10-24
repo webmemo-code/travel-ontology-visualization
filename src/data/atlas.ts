@@ -1,8 +1,8 @@
 // True country borders (Natural Earth via world-atlas, public domain), used as
 // a faint ghost layer under the cartogram so the distortion is visible.
-import { feature } from 'topojson-client';
+import { feature, mesh } from 'topojson-client';
 import { geoArea } from 'd3-geo';
-import type { Feature, FeatureCollection, Geometry } from 'geojson';
+import type { Feature, FeatureCollection, Geometry, MultiLineString } from 'geojson';
 import atlasUrl from 'world-atlas/countries-50m.json?url';
 import type { Graph } from './types';
 
@@ -20,6 +20,8 @@ export interface Atlas {
   byNode: Map<string, Feature<Geometry, { name: string }>>;
   /** Share of the world's land area, 0..1. */
   landShare: Map<string, number>;
+  /** Coastlines only (borders no other country shares), for continent contours. */
+  coast: MultiLineString;
 }
 
 export async function loadAtlas(graph: Graph): Promise<Atlas> {
@@ -39,5 +41,7 @@ export async function loadAtlas(graph: Graph): Promise<Atlas> {
     byNode.set(n.key, f);
     landShare.set(n.key, geoArea(f) / total);
   }
-  return { features: fc.features, byNode, landShare };
+  // Arcs used by one country only are coastlines: the continents' contour.
+  const coast = mesh(topo, topo.objects.countries, (a: unknown, b: unknown) => a === b) as MultiLineString;
+  return { features: fc.features, byNode, landShare, coast };
 }

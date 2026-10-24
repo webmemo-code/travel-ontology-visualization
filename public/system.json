@@ -12,9 +12,10 @@
   "entitymap": 223
  },
  "consumers": {
-  "google": 0.91,
+  "google": 0.9,
+  "ai-training": 1.0,
   "ai-search": 0.67,
   "assistants": 0.19,
-  "travelers": 1.0
+  "travelers": 0.99
  }
 }

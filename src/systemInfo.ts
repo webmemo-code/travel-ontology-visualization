@@ -50,6 +50,10 @@ export const SYSTEM_INFO: Record<string, SystemInfo> = {
     title: 'Google Search',
     text: 'Reads the JSON-LD for rich results and entity understanding. The Wikidata links let Google tie our articles to its own Knowledge Graph.',
   },
+  'sys:ai-training': {
+    title: 'AI training',
+    text: 'Crawlers that collect text to train language models (GPTBot, ClaudeBot, Common Crawl and others). They send no travelers back, but they read the most: llms.txt, the OKF bundle and the articles. What they learn decides how models describe our destinations later.',
+  },
   'sys:ai-search': {
     title: 'AI search',
     text: 'Crawlers from ChatGPT, Perplexity and others fetch llms.txt, the EntityMap and the knowledge bundle. The plugin counts their visits, grouped into training, search and user-triggered fetches.',

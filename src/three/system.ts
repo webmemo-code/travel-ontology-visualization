@@ -15,6 +15,8 @@ import type { Vec3 } from '../data/model';
 import type { Graph, SystemNumbers } from '../data/types';
 
 export const CUBE_Y = -16;
+// Site icons drawn in front of a logo file that lacks them.
+const ICONS: Record<string, string> = { travelmemo: 'identity/organizations-travelmemo-icon.png' };
 const MINI = 0.2; // the mini globe is the globe view at a fifth of its size
 const TOWER_Y = 4;
 const OUTPUT_Y = 22;
@@ -91,28 +93,24 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
   plate(CUBE_Y - r - 1.5, r + 4, 'SOURCE OF TRUTH');
   plate(TOWER_Y, 22, 'PUBLISHING');
   plate(OUTPUT_Y, 30, 'GENERATED OUTPUTS');
-  plate(CONSUMER_Y, 36, 'WHO READS IT');
+  plate(CONSUMER_Y, 34, 'WHO READS IT');
 
   const globeTop = new THREE.Vector3(0, CUBE_Y + r, 0);
   labels.push({ text: `Ontology · ${graph.nodes.length} entities in YAML`, pos: { x: r + 9, y: CUBE_Y, z: 0 }, color: '#FFD54F', px: 16, priority: 5000 });
 
-  // Publishing: each blog a flat box whose VOLUME is its article count. The
-  // long faces are 3:1, the shape of a wordmark, so the logo fills them; the
-  // square ends carry it smaller.
+  // Publishing: each blog a box whose VOLUME is its article count, with a
+  // square section so all four sides are the same 3:1 face, the shape of a
+  // wordmark, and the logo looks the same from every side.
   const logos = new THREE.TextureLoader();
-  const dims = graph.sites.map((s) => {
-    const h = 0.75 * Math.cbrt(Math.max(1, s.posts) / 3);
-    return { w: 3 * h, h, d: h };
-  });
   const towers = graph.sites.map((s, i) => {
-    const { w, h, d } = dims[i];
+    const h = 0.9 * Math.cbrt(Math.max(1, s.posts) / 9);
+    const w = 3 * h;
     const x = (i === 0 ? -1 : 1) * (w / 2 + 1);
     const color = i === 0 ? '#26C6DA' : '#7E57C2';
     const plain = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.55 });
-    const long = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 0.35 });
-    const end = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 0.35 });
-    // Box faces: +x, -x, +y, -y, +z, -z.
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [end, end, plain, plain, long, long]);
+    const face = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 0.35 });
+    // Box faces: +x, -x, +y, -y, +z, -z; the logo on all four sides.
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), [face, face, plain, plain, face, face]);
     mesh.position.set(x, TOWER_Y + h / 2, 0);
     mesh.userData.key = `sys:site:${s.key}`;
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.6 }));
@@ -120,30 +118,33 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     group.add(mesh, edges);
     pickables.push(mesh);
     labels.push({ text: `${s.name} · ${s.posts}`, pos: { x, y: TOWER_Y + h + 0.4, z: 0 }, color: '#ffffff', px: 12, priority: 4000 });
-    logos.load(`identity/organizations-${s.key}.png`, (img) => {
-      // The logo is light text on a transparent PNG: paint it onto the blog's
-      // colour, darkened a little so the lettering reads.
-      const paint = (cw: number, ch: number, fill: number) => {
-        const c = document.createElement('canvas');
-        c.width = cw;
-        c.height = ch;
-        const ctx = c.getContext('2d')!;
-        ctx.fillStyle = color;
-        ctx.fillRect(0, 0, cw, ch);
-        ctx.fillStyle = 'rgba(8, 12, 24, 0.35)';
-        ctx.fillRect(0, 0, cw, ch);
-        const lw = cw * fill;
-        const lh = (lw * img.image.height) / img.image.width;
-        ctx.drawImage(img.image, (cw - lw) / 2, (ch - lh) / 2, lw, lh);
-        const tex = new THREE.CanvasTexture(c);
-        tex.colorSpace = THREE.SRGBColorSpace;
-        return tex;
-      };
-      for (const [m, tex] of [[long, paint(768, 256, 0.9)], [end, paint(256, 256, 0.9)]] as const) {
-        m.map = tex;
-        m.emissiveMap = tex;
-        m.needsUpdate = true;
-      }
+    // Reisememo's logo file carries its bar icon; Travelmemo's header logo is
+    // the wordmark alone, so its site icon is drawn in front of it.
+    const icon = ICONS[s.key];
+    Promise.all([logos.loadAsync(`identity/organizations-${s.key}.png`), icon ? logos.loadAsync(icon) : null]).then(([mark, bars]) => {
+      const c = document.createElement('canvas');
+      c.width = 768;
+      c.height = 256;
+      const ctx = c.getContext('2d')!;
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, 768, 256);
+      ctx.fillStyle = 'rgba(8, 12, 24, 0.35)';
+      ctx.fillRect(0, 0, 768, 256);
+      const mw = mark.image.width;
+      const mh = mark.image.height;
+      // Fit icon + wordmark into 90% of the width, the icon as tall as the mark.
+      const iw = bars ? mh * 1.15 : 0;
+      const gap = bars ? mh * 0.2 : 0;
+      const k = (768 * 0.9) / (iw + gap + mw);
+      const left = (768 - (iw + gap + mw) * k) / 2;
+      const top = (256 - mh * k) / 2;
+      if (bars) ctx.drawImage(bars.image, left, top - mh * k * 0.075, iw * k, iw * k);
+      ctx.drawImage(mark.image, left + (iw + gap) * k, top, mw * k, mh * k);
+      const tex = new THREE.CanvasTexture(c);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      face.map = tex;
+      face.emissiveMap = tex;
+      face.needsUpdate = true;
     });
     return new THREE.Vector3(x, TOWER_Y + h, 0);
   });
@@ -205,6 +206,7 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
   // Who reads it: sphere size = relative monthly volume (log-scaled upstream).
   const consumers: [string, string, string, string[]][] = [
     ['sys:google', 'Google Search', 'google', ['sys:html', 'sys:photos', 'sys:jsonld', 'sys:taxonomy']],
+    ['sys:ai-training', 'AI training', 'ai-training', ['sys:html', 'sys:llmstxt', 'sys:okf', 'sys:entitymap']],
     ['sys:ai-search', 'AI search', 'ai-search', ['sys:html', 'sys:jsonld', 'sys:entitymap', 'sys:llmstxt', 'sys:okf']],
     ['sys:assistants', 'AI assistants', 'assistants', ['sys:html', 'sys:entitymap', 'sys:llmstxt', 'sys:okf']],
     ['sys:travelers', 'Travelers', 'travelers', ['sys:html', 'sys:photos', 'sys:taxonomy']],
@@ -213,7 +215,7 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
   consumers.forEach(([key, title, field, from], i) => {
     const w = numbers?.consumers[field] ?? 0.6;
     const size = 1 + 2.6 * w;
-    const at = { x: (i - 1.5) * 16, y: CONSUMER_Y, z: 0 };
+    const at = { x: (i - (consumers.length - 1) / 2) * 12, y: CONSUMER_Y, z: 0 };
     const mesh = new THREE.Mesh(
       new THREE.IcosahedronGeometry(size, 1),
       new THREE.MeshStandardMaterial({ color: '#66BB6A', emissive: '#66BB6A', emissiveIntensity: 0.7, flatShading: true, transparent: true, opacity: 0.9 }),
@@ -279,8 +281,17 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     rgeo.attributes.position.needsUpdate = true;
   };
 
-  /** Continents on the mini globe: the globe view's border segments, scaled down. */
-  const setCoastlines = (segs: number[]) => {
+  /** Continents on the mini globe: the globe view's border segments, scaled down, and the coast drawn brighter on top. */
+  const setCoastlines = (segs: number[], coast: number[]) => {
+    const contour = new Float32Array(coast.length);
+    for (let i = 0; i < coast.length; i += 3) {
+      contour[i] = coast[i] * MINI * 1.004;
+      contour[i + 1] = CUBE_Y + coast[i + 1] * MINI * 1.004;
+      contour[i + 2] = coast[i + 2] * MINI * 1.004;
+    }
+    const cg = new THREE.BufferGeometry();
+    cg.setAttribute('position', new THREE.BufferAttribute(contour, 3));
+    group.add(new THREE.LineSegments(cg, new THREE.LineBasicMaterial({ color: '#FFD54F', transparent: true, opacity: 0.95 })));
     const pts = new Float32Array(segs.length);
     for (let i = 0; i < segs.length; i += 3) {
       pts[i] = segs[i] * MINI;
