@@ -8,6 +8,7 @@
 // (cartogram below), not by distorting the map.
 import type { Graph, GraphPost } from './types';
 import { ancestorOfType, placeTree, type Vec3 } from './model';
+import type { Footprint } from './footprint';
 
 export const DOME_R = 60;
 const SHELLS = [22, 32, 40, 47, 52];
@@ -284,6 +285,44 @@ export function placesOverTiles(
     const first = n.route?.[0];
     const p = first ? out.get(first) : undefined;
     if (p) out.set(n.key, { x: p.x * 0.85, y: p.y * 0.85 + 2, z: p.z * 0.85 });
+  }
+  return out;
+}
+
+// Concentration below LOOSE keeps a topic in the sky; at TIGHT it hangs right over its hotspot.
+const LOOSE = 0.15;
+const TIGHT = 0.5;
+
+/**
+ * Bring each topic down from the sky towards its strongest hotspot country,
+ * as far as its concentration earns: Safari drops over Botswana, Hiking leans
+ * towards Switzerland, Restaurant stays up as the everywhere topic. Topics
+ * sharing a hotspot fan out around it so they don't stack.
+ */
+export function topicsOverHotspots(graph: Graph, pos: Map<string, Vec3>, fps: Map<string, Footprint>): Map<string, Vec3> {
+  const out = new Map(pos);
+  const sharing = new Map<string, string[]>();
+  for (const n of graph.nodes) {
+    const h = n.class === 'topics' ? fps.get(n.key)?.hotspots[0] : undefined;
+    if (h && out.has(h.country)) sharing.set(h.country, [...(sharing.get(h.country) ?? []), n.key]);
+  }
+  for (const [country, keys] of sharing) {
+    const c = out.get(country)!;
+    const hot = norm([c.x, c.y, c.z]);
+    // Two tangents at the hotspot to fan neighbours around it.
+    const t1 = norm(cross(hot, Math.abs(hot[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0]));
+    const t2 = cross(hot, t1);
+    keys.forEach((k, i) => {
+      const t = Math.min(1, Math.max(0, (fps.get(k)!.concentration - LOOSE) / (TIGHT - LOOSE)));
+      if (t === 0) return;
+      const s = out.get(k)!;
+      const sky = norm([s.x, s.y, s.z]);
+      const a = (2 * Math.PI * i) / keys.length;
+      const fan = keys.length > 1 ? 0.12 : 0;
+      const over = norm(add(hot, add(scale(t1, fan * Math.cos(a)), scale(t2, fan * Math.sin(a)))));
+      const d = norm(add(scale(sky, 1 - t), scale(over, t)));
+      out.set(k, toVec(scale(d, 40 - 4 * t)));
+    });
   }
   return out;
 }

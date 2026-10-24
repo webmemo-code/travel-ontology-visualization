@@ -16,7 +16,8 @@ import type { LiveBySite } from '../data/live';
 import { buildSystem, cubePositions } from './system';
 import { buildDome, type AtlasIndex, type Dome } from './dome';
 import { haloTexture, makeEmblem, makePortrait } from './portrait';
-import { DOME_R, domeDirection, domeLayout, placesOverTiles, postKey } from '../data/globe';
+import { DOME_R, domeDirection, domeLayout, placesOverTiles, postKey, topicsOverHotspots } from '../data/globe';
+import { footprints, liftByCountry, type Footprint } from '../data/footprint';
 import type { Atlas } from '../data/atlas';
 import { WALL_X, bridgeKind, mirrorSlots, wallPositions } from '../data/mirror';
 import { CLASS_COLORS, ancestorOfType, cooccurring, descendants, labelFor, placeTree, postsFor, statsFor, type PlaceTree, type Vec3 } from '../data/model';
@@ -121,6 +122,10 @@ export class GraphScene {
   private lit: Set<string> | null = null;
   private links = new THREE.Group();
   private focusLinks = new THREE.Group();
+  private hotLines = new THREE.Group();
+  private hotMats: LineMaterial[] = [];
+  /** Footprints per site mode, computed on first use. */
+  private fps = new Map<SiteMode, Map<string, Footprint>>();
   private mirrorDecor = new THREE.Group();
   private system: ReturnType<typeof buildSystem>;
   private view: View = 'graph';
@@ -180,7 +185,8 @@ export class GraphScene {
       return f === undefined ? null : { center: this.dome.centers[f].toArray() as [number, number, number], region: this.dome.faceRegion[f] };
     });
     this.layouts = {
-      graph: domePos,
+      // Topics hang over where they are over-represented, judged on both blogs.
+      graph: topicsOverHotspots(graph, domePos, this.footprintsFor('both')),
       system: cubePositions(graph),
       mirror: wallPositions(graph, -1),
       mirrorDe: wallPositions(graph, 1),
@@ -194,7 +200,7 @@ export class GraphScene {
     this.system = buildSystem(graph);
     this.system.labels.forEach((l, i) => this.labels.set(`sys-label:${i}`, l.text, l.pos, l.priority, { px: l.px, color: l.color, views: ['system'], always: true }));
     this.dome.group.add(this.ghost, this.ghostFocus);
-    this.scene.add(this.dome.group, this.links, this.focusLinks, this.mirrorDecor, this.system.group, this.live.group);
+    this.scene.add(this.dome.group, this.links, this.focusLinks, this.hotLines, this.mirrorDecor, this.system.group, this.live.group);
     this.labelScene.add(this.labels.group);
     this.showViewDecor();
     this.applyStyle();
@@ -482,6 +488,19 @@ export class GraphScene {
     this.ghostFocus.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#FFD54F', transparent: true, opacity: 0.95, depthWrite: false })));
   }
 
+  private footprintsFor(mode: SiteMode): Map<string, Footprint> {
+    let fp = this.fps.get(mode);
+    if (!fp) this.fps.set(mode, (fp = footprints(this.graph, postsFor(this.graph, mode))));
+    return fp;
+  }
+
+  /** The selected topic's or company's footprint, for the lens; null for anything else. */
+  private selectedFootprint(): Footprint | null {
+    const n = this.selected ? this.nodes.get(this.selected) : undefined;
+    if (!n || (n.class !== 'topics' && n.class !== 'organizations')) return null;
+    return this.footprintsFor(this.mode).get(n.key) ?? null;
+  }
+
   /** Entities and articles to keep lit for the current selection. */
   private highlight(): { entities: Set<string>; posts: Set<string> } | null {
     const sel = this.selected;
@@ -576,11 +595,17 @@ export class GraphScene {
     // Articles filed inside the selection's own country patch light fully;
     // ones that merely mention it but were filed elsewhere stay dim amber.
     const home = this.selected && this.views.has(this.selected) ? ancestorOfType(this.tree, this.nodes, this.selected, 'Country') : null;
-    this.paintDome(hl?.posts ?? null, home);
+    const fp = this.selectedFootprint();
+    this.paintDome(hl?.posts ?? null, home, fp ? liftByCountry(fp) : null);
     this.updatePhotoSky(hl?.posts ?? null);
   }
 
-  private paintDome(lit: Set<string> | null, home: string | null = null) {
+  /**
+   * `lens` (a topic or company selected): country -> lift. Its articles light
+   * by how over-represented it is in their country, and the rest of a hotspot
+   * country's patch gets a faint wash, so the patch reads as a heat region.
+   */
+  private paintDome(lit: Set<string> | null, home: string | null = null, lens: Map<string, number> | null = null) {
     const tmp = new THREE.Color();
     const boost = lit && lit.size > 60 ? 0.85 : 1.8;
     const v4 = (c: THREE.Color, a: number) => [c.r, c.g, c.b, a];
@@ -590,10 +615,21 @@ export class GraphScene {
       // `far` is the plain tile; `near` multiplies the photo where the LOD shows it
       // (near-white keeps the photo, a light site tint says EN or DE, gold marks the selection).
       const photo = this.dome.hasPhoto(post);
+      const f = this.dome.postFace.get(key);
+      const lift = lens && f !== undefined ? lens.get(this.dome.faceRegion[f] ?? '') ?? 0 : 0;
       let far: number[];
       let near: number[];
-      if (lit && lit.has(key)) {
-        const f = this.dome.postFace.get(key);
+      if (lit && lit.has(key) && lens && lift < 1.5) {
+        // Tagged, but no more than the blog's usual share here: dim amber.
+        far = [0.3, 0.17, 0.02, 0.55];
+        near = [0.45, 0.32, 0.12, 0.5];
+      } else if (lit && lit.has(key) && lens) {
+        const k = Math.min(1, 0.45 + 0.2 * Math.log2(lift)) * 1.8;
+        far = [GOLD.r * k, GOLD.g * k, GOLD.b * k, 1];
+        near = [1.0, 0.88, 0.55, 0.92];
+      } else if (lit && lens && lift >= 1.5) {
+        far = near = [0.22, 0.12, 0.02, 0.5];
+      } else if (lit && lit.has(key)) {
         if (home && f !== undefined && this.dome.faceRegion[f] !== home) {
           far = [0.3, 0.17, 0.02, 0.55];
           near = [0.45, 0.32, 0.12, 0.5];
@@ -641,9 +677,30 @@ export class GraphScene {
     return { x: b.base.x, y: b.base.y + lift, z: b.base.z };
   }
 
+  /** A selected topic or company: bold lines to its top three hotspot countries, weighted by share. */
+  private refreshHotLines() {
+    this.hotLines.children.forEach((c) => (c as LineSegments2).geometry.dispose());
+    this.hotLines.clear();
+    this.hotMats.forEach((m) => m.dispose());
+    this.hotMats = [];
+    const fp = this.selectedFootprint();
+    const from = this.selected ? this.views.get(this.selected)?.base : undefined;
+    if (this.view !== 'graph' || !fp || !from) return;
+    const { clientWidth: w, clientHeight: h } = this.container;
+    for (const hot of fp.hotspots.slice(0, 3)) {
+      const to = this.views.get(hot.country)?.base;
+      if (!to) continue;
+      const mat = new LineMaterial({ color: 0xffd54f, linewidth: 1.5 + 5 * hot.share, transparent: true, opacity: 0.9, depthWrite: false });
+      mat.resolution.set(w, h);
+      this.hotMats.push(mat);
+      this.hotLines.add(new LineSegments2(new LineSegmentsGeometry().setPositions([from.x, from.y, from.z, to.x, to.y, to.z]), mat));
+    }
+  }
+
   private refreshFocus() {
     this.focusLinks.clear();
     this.refreshGhostFocus();
+    this.refreshHotLines();
     if (this.view !== 'graph' || !this.selected) return;
     const segs: number[] = [];
     const post = this.postsByKey.get(this.selected);
@@ -755,7 +812,7 @@ export class GraphScene {
 
   private showViewDecor() {
     const v = this.view;
-    this.dome.group.visible = this.links.visible = this.live.group.visible = v === 'graph';
+    this.dome.group.visible = this.links.visible = this.hotLines.visible = this.live.group.visible = v === 'graph';
     this.mirrorDecor.visible = v === 'mirror';
     this.system.group.visible = v === 'system';
   }
@@ -840,6 +897,7 @@ export class GraphScene {
     this.renderer.setSize(w, h);
     this.bloom.updateSize(w, h);
     this.ghostMats.forEach((m) => m.resolution.set(w, h));
+    this.hotMats.forEach((m) => m.resolution.set(w, h));
   };
 
   private stepMorph() {
