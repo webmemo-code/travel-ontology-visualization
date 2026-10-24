@@ -20,7 +20,7 @@ import { DOME_R, domeDirection, domeLayout, orgsOverHeadquarters, placesOverTile
 import { footprints, liftByCountry, type Footprint } from '../data/footprint';
 import type { Atlas } from '../data/atlas';
 import { WALL_X, bridgeKind, mirrorSlots, wallPositions } from '../data/mirror';
-import { CLASS_COLORS, ancestorOfType, cooccurring, descendants, labelFor, placeTree, postsFor, statsFor, type PlaceTree, type Vec3 } from '../data/model';
+import { CLASS_COLORS, ancestorOfType, cooccurring, descendants, labelFor, placeTree, postsFor, slugTitle, statsFor, type PlaceTree, type Vec3 } from '../data/model';
 import type { Graph, GraphNode, GraphPost, Perf, SiteMode, SiteStats } from '../data/types';
 import type { Geometry } from 'geojson';
 
@@ -371,7 +371,23 @@ export class GraphScene {
         return f === undefined ? null : this.dome.centers[f].clone();
       },
       entity: (key) => this.layouts.graph.get(key) ?? null,
+      name: ({ site, post, entity }) => {
+        if (post) {
+          const p = this.postsByKey.get(`post:${site}:${post}`);
+          return p ? this.titleOf(p) : null;
+        }
+        const n = entity ? this.nodes.get(entity) : undefined;
+        return n ? labelFor(n, site) : null;
+      },
     });
+  }
+
+  /** How an article is named on the globe; the app swaps in real titles once they load. */
+  titleOf: (post: GraphPost) => string = (p) => slugTitle(p.url);
+
+  /** Re-label the live layer, e.g. after real titles loaded. */
+  refreshLiveNames() {
+    this.refreshLive();
   }
 
   /** Search: dim all but `keys`; `top` (what Enter would pick) also lights its articles. */

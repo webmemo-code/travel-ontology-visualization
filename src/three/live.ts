@@ -5,6 +5,9 @@
 // over its operator's headquarters, drops a thin tether to the country its
 // requests came from, and beams to the article or entity it fetched. Bots
 // with no known operator keep orbiting.
+// What is being read glows: each target article or entity gets a pulsing ring
+// in the reader's or bot's colour and its title as a label. A ring grows a
+// little with more readers on it, but never shows a count.
 // No numbers anywhere: one dot per distinct reader row, one satellite per bot.
 import * as THREE from 'three';
 import { DOME_R, domeDirection } from '../data/globe';
@@ -17,7 +20,7 @@ import { haloTexture } from './portrait';
 import { withDepthFade } from './depthFade';
 
 export const READER_COLOR = '#69F0AE';
-export const TIER_COLORS: Record<BotTier, string> = { training: '#FF7043', search: '#FFEE58', user: '#F06292', other: '#B0BEC5' };
+export const TIER_COLORS: Record<BotTier, string> = { training: '#FF7043', search: '#FFEE58', user: '#9CCC65', other: '#B0BEC5' };
 const TIER_ORBIT: Record<BotTier, number> = { training: 1.55, search: 1.42, user: 1.3, other: 1.65 };
 const WINDOW_S = 1800;
 // Six operators sit within 60 km of each other in the Bay Area; at globe scale
@@ -59,6 +62,31 @@ export interface LiveContext {
   tile: (site: SiteKey, id: number) => THREE.Vector3 | null;
   /** An entity's box position, or null. */
   entity: (key: string) => Vec3 | null;
+  /** What to call a target: an article's title or an entity's label. */
+  name: (target: { site: SiteKey; post?: number | null; entity?: string }) => string | null;
+}
+
+interface Target {
+  at: THREE.Vector3;
+  color: string;
+  /** Readers and bots on it; only ever drives the ring size, never shown. */
+  weight: number;
+  name: string | null;
+}
+
+/** A thin bright ring on a transparent canvas, for the target pulses. */
+function ringTexture(): THREE.CanvasTexture {
+  const c = document.createElement('canvas');
+  c.width = c.height = 128;
+  const ctx = c.getContext('2d')!;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 7;
+  ctx.shadowColor = '#ffffff';
+  ctx.shadowBlur = 12;
+  ctx.beginPath();
+  ctx.arc(64, 64, 46, 0, Math.PI * 2);
+  ctx.stroke();
+  return new THREE.CanvasTexture(c);
 }
 
 interface Satellite {
@@ -84,6 +112,9 @@ export class LiveLayer {
   private dots: THREE.Sprite[] = [];
   private sats = new Map<string, Satellite>();
   private dotTex = haloTexture();
+  private ringTex = ringTexture();
+  private rings: THREE.Sprite[] = [];
+  private targets = new Map<string, Target>();
 
   private labels: Labels;
 
@@ -102,10 +133,12 @@ export class LiveLayer {
           b.kind === 'post' && b.post ? ctx.tile(site, b.post) : b.kind === 'entity' && b.entity ? toVec(ctx.entity(b.entity)) : null;
         const sat = this.satellite(b.bot);
         if (at) sat.targets.push({ at, fresh: 1 - (0.7 * Math.min(b.seconds_ago, WINDOW_S)) / WINDOW_S });
+        if (at) this.mark(b.kind === 'post' ? `${site}:${b.post}` : `entity:${b.entity}`, at, TIER_COLORS[tierOf(b.bot)], ctx.name({ site, post: b.post, entity: b.entity }));
         const centre = b.country && ctx.atlas && !sat.origins.has(b.country) ? countryCentre(ctx.atlas, b.country) : null;
         if (centre) sat.origins.set(b.country!, new THREE.Vector3(...domeDirection(centre[0], centre[1])).multiplyScalar(DOME_R * 1.01));
       }
     }
+    this.drawTargets();
     for (const s of this.sats.values()) {
       s.beams.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(Math.max(1, s.targets.length) * 6), 3));
       s.tethers.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(Math.max(1, s.origins.size) * 6), 3));
@@ -127,6 +160,7 @@ export class LiveLayer {
     this.dots.push(dot);
     const to = post ? ctx.tile(site, post) : null;
     if (!to) return;
+    this.mark(`${site}:${post}`, to, READER_COLOR, ctx.name({ site, post }));
     // Arc over the skin: lift the control point outward, more for longer hops.
     const mid = from.clone().add(to).multiplyScalar(0.5);
     const lift = DOME_R * (1.05 + 0.35 * from.distanceTo(to) / (2 * DOME_R));
@@ -139,6 +173,36 @@ export class LiveLayer {
     arc.computeLineDistances();
     this.readerGroup.add(arc);
     this.arcs.push(arc);
+  }
+
+  /** Note a target; a reader's colour wins over a bot's, since people reading is the headline. */
+  private mark(key: string, at: THREE.Vector3, color: string, name: string | null) {
+    const t = this.targets.get(key);
+    if (!t) return void this.targets.set(key, { at, color, weight: 1, name });
+    t.weight++;
+    if (color === READER_COLOR) t.color = color;
+  }
+
+  /** Rings on every target; titles only on the busiest few, readers first, so the globe stays legible. */
+  private drawTargets() {
+    const named = new Set(
+      [...this.targets]
+        .sort((a, b) => +(b[1].color === READER_COLOR) - +(a[1].color === READER_COLOR) || b[1].weight - a[1].weight)
+        .slice(0, 6)
+        .map(([k]) => k),
+    );
+    for (const [key, t] of this.targets) {
+      const ring = new THREE.Sprite(
+        new THREE.SpriteMaterial({ map: this.ringTex, color: t.color, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }),
+      );
+      // Just above the tile or box, so the ring is never buried in it.
+      ring.position.copy(t.at).multiplyScalar(t.at.length() > DOME_R * 0.9 ? 1.012 : 1);
+      ring.userData.base = 4.5 + 1.2 * Math.min(t.weight - 1, 4);
+      ring.userData.phase = hash(key) * Math.PI * 2;
+      this.group.add(ring);
+      this.rings.push(ring);
+      if (t.name && named.has(key)) this.labels.set(`live-target:${key}`, t.name, toPlain(ring.position.clone().multiplyScalar(1.02)), 5500, { px: 13, color: t.color, views: ['graph'] });
+    }
   }
 
   private satellite(bot: string): Satellite {
@@ -171,6 +235,12 @@ export class LiveLayer {
   /** Orbits, beams and pulses; call every frame. */
   tick(t: number) {
     for (const dot of this.dots) dot.material.opacity = 0.7 + 0.3 * Math.sin(t * 2.2 + dot.userData.phase);
+    // Target rings breathe outward and fade, like a ping.
+    for (const ring of this.rings) {
+      const k = ((t * 0.6 + ring.userData.phase) % 1 + 1) % 1;
+      ring.scale.setScalar(ring.userData.base * (0.7 + 0.6 * k));
+      ring.material.opacity = 0.95 * (1 - k * 0.8);
+    }
     // Dashes flow toward the article. Each arc has its own uniform; they share one clock.
     for (const arc of this.arcs) (arc.userData.shift as { value: number }).value = -t * 3;
     for (const s of this.sats.values()) {
@@ -210,6 +280,13 @@ export class LiveLayer {
       this.readerGroup.remove(dot);
       dot.material.dispose();
     }
+    for (const ring of this.rings) {
+      this.group.remove(ring);
+      ring.material.dispose();
+    }
+    for (const key of this.targets.keys()) this.labels.set(`live-target:${key}`, null, { x: 0, y: 0, z: 0 }, 0);
+    this.rings = [];
+    this.targets.clear();
     this.arcs = [];
     this.dots = [];
     for (const s of this.sats.values()) {

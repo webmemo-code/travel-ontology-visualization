@@ -5,10 +5,10 @@ import { TOUR } from './tour';
 import { postKey } from './data/globe';
 import { bridgeCounts } from './data/mirror';
 import { loadAtlas, type Atlas } from './data/atlas';
-import { demoLive, fetchLive, type LiveBySite } from './data/live';
+import { botName, demoLive, fetchLive, tierOf, type LiveBySite, type LiveSnapshot } from './data/live';
 import { READER_COLOR, TIER_COLORS } from './three/live';
 import { CLASS_COLORS, CLASS_NAMES, PERF_RANK, cooccurring, descendants, labelFor, placeTree, postsFor, slugTitle, statsFor } from './data/model';
-import type { Graph, GraphNode, GraphPost, Perf, SiteMode } from './data/types';
+import type { Graph, GraphNode, GraphPost, Perf, SiteKey, SiteMode } from './data/types';
 
 const PERF_TEXT: Record<Perf, string> = {
   top10: 'Top 10% in search',
@@ -151,18 +151,53 @@ function Viewer({ graph }: { graph: Graph }) {
     if (tourStep === null) sceneRef.current?.select(selected);
   }, [selected, tourStep]);
   useEffect(() => {
-    if (detailsRequested || (!query && !(selected && posts.has(selected)))) return;
+    if (detailsRequested || (!query && !live && !(selected && posts.has(selected)))) return;
     detailsRequested = true;
     fetch('headings.json')
       .then((r) => r.json())
       .then((d: { posts: Record<string, ArticleDetail> }) => {
         DETAILS = d.posts ?? {};
         setDetailsLoaded(true);
+        if (sceneRef.current) {
+          sceneRef.current.titleOf = titleOf;
+          sceneRef.current.refreshLiveNames();
+        }
       })
       .catch(() => {
         detailsRequested = false; // offline or missing: slug titles stay
       });
-  }, [query, selected, posts]);
+  }, [query, selected, posts, live]);
+
+  // "Reading now": up to 5 readers, then AI agents newest first, 8 rows in all
+  // (more of one kind when the other has fewer). Each row flies to what is
+  // being read. No counts.
+  const reading = useMemo(() => {
+    if (!liveState) return [];
+    const rows: { id: string; who: string; color: string; what: string; pick: string | null }[] = [];
+    const scoped = Object.entries(liveState).filter(([site]) => mode === 'both' || site === mode) as [SiteKey, LiveSnapshot][];
+    for (const [site, snap] of scoped)
+      for (const r of snap.readers) {
+        const p = r.post ? posts.get(`post:${site}:${r.post}`) : undefined;
+        if (p) rows.push({ id: `r:${site}:${r.country}:${r.city}:${r.post}`, who: r.city ? `${r.city} · ${r.country}` : r.country, color: READER_COLOR, what: titleOf(p), pick: postKey(p) });
+      }
+    const readerRows = rows.splice(0);
+    const bots = scoped.flatMap(([site, snap]) => snap.bots.map((b) => ({ site, b }))).sort((x, y) => x.b.seconds_ago - y.b.seconds_ago);
+    for (const { site, b } of bots) {
+      const p = b.kind === 'post' && b.post ? posts.get(`post:${site}:${b.post}`) : undefined;
+      const n = b.kind === 'entity' && b.entity ? byKey.get(b.entity) : undefined;
+      if (!p && !n) continue;
+      rows.push({
+        id: `b:${site}:${b.bot}:${b.route}:${b.post ?? b.entity}`,
+        who: botName(b.bot),
+        color: TIER_COLORS[tierOf(b.bot)],
+        what: p ? titleOf(p) : labelFor(n!, site),
+        pick: p ? postKey(p) : n!.key,
+      });
+    }
+    const r = readerRows.slice(0, Math.max(5, 8 - rows.length));
+    return [...r, ...rows.slice(0, 8 - r.length)];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveState, mode, posts, byKey, DETAILS]);
 
   // Search: every query word must start a word of the name ("zer" finds Zermatt,
   // not SwitZERland; "park weggis" finds the Park Weggis article). Entities rank
@@ -276,6 +311,23 @@ function Viewer({ graph }: { graph: Graph }) {
               <span className="live-dot" /> Live
             </button>
             {live && <span className="live-status">{liveLabel(liveState)}</span>}
+          </div>
+        )}
+        {live && reading.length > 0 && (
+          <div className="reading-now">
+            <h3>Reading now</h3>
+            <ul>
+              {reading.map((r) => (
+                <li key={r.id}>
+                  <button onClick={() => r.pick && pickHit(r.pick)} title={r.what}>
+                    <span className="who" style={{ color: r.color }}>
+                      {r.who}
+                    </span>
+                    <span className="what">{r.what}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
         <div className="search-box">

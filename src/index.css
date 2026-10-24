@@ -147,3 +147,13 @@ a.ext:hover { text-decoration: underline; }
 
 .outline { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; line-height: 1.35; }
 .outline li::marker { color: var(--muted, #8a93a6); }
+
+.reading-now { margin: 2px 0 10px; }
+.reading-now h3 { margin: 0 0 4px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.7; }
+.reading-now ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.reading-now button {
+  display: grid; grid-template-columns: minmax(0, 7.5em) minmax(0, 1fr); gap: 8px; width: 100%;
+  padding: 3px 6px; background: none; border: 0; border-radius: 6px; text-align: left; cursor: pointer; color: inherit; font-size: 13px;
+}
+.reading-now button:hover, .reading-now button:focus-visible { background: rgba(255, 255, 255, 0.07); }
+.reading-now .who, .reading-now .what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
