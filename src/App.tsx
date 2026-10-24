@@ -315,7 +315,7 @@ function Viewer({ graph }: { graph: Graph }) {
         )}
         {live && reading.length > 0 && (
           <div className="reading-now">
-            <h3>Reading now</h3>
+            <h3>On the blogs now</h3>
             <ul>
               {reading.map((r) => (
                 <li key={r.id}>
@@ -423,16 +423,20 @@ function Viewer({ graph }: { graph: Graph }) {
                     </span>
                   ))}
                 </div>
-                <p>AI agents hover over the company that runs them; a thin line drops to the country the request came from.</p>
               </div>
             )}
             {view === 'graph' ? (
-              <p>
+              // The colour keys stay in view; the prose folds away to save height.
+              <details className="explain">
+                <summary>How to read the map</summary>
+                {live && <p>AI agents hover over the company that runs them; a thin line drops to the country the request came from.</p>}
+                <p>
                 Each tile is an article (<b style={{ color: '#26C6DA' }}>EN</b> / <b style={{ color: '#B388FF' }}>DE</b>). Countries are patches sized by
                 our articles, not their area; gold lines trace true borders, brighter where we write. Places hang inside. Topics sink towards where we write about
                 them most; ones we write about everywhere stay high. Companies sit over their headquarters. Halo = top
                 search performer · outline = no article yet.
-              </p>
+                </p>
+              </details>
             ) : (
               <p>Size = articles · Halo = top search performer · Outline = no article yet</p>
             )}

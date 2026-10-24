@@ -157,3 +157,11 @@ a.ext:hover { text-decoration: underline; }
 }
 .reading-now button:hover, .reading-now button:focus-visible { background: rgba(255, 255, 255, 0.07); }
 .reading-now .who, .reading-now .what { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.explain { margin-top: 8px; }
+.explain summary { cursor: pointer; font-size: 13px; opacity: 0.8; list-style: none; }
+.explain summary::-webkit-details-marker { display: none; }
+.explain summary::before { content: '▸'; display: inline-block; width: 1em; transition: transform 0.15s; }
+.explain[open] summary::before { transform: rotate(90deg); }
+.explain summary:hover { opacity: 1; }
+.explain p { margin: 6px 0 0; }
