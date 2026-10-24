@@ -12,12 +12,11 @@ import { geoEquirectangular, geoPath } from 'd3-geo';
 import type { Feature, Geometry } from 'geojson';
 import { domeDirection } from '../data/globe';
 import { withHorizonCull } from './depthFade';
+import { logoTexture } from './logo';
 import type { Vec3 } from '../data/model';
 import type { Graph, SystemNumbers } from '../data/types';
 
 export const CUBE_Y = -16;
-// Site icons drawn in front of a logo file that lacks them.
-const ICONS: Record<string, string> = { travelmemo: 'identity/organizations-travelmemo-icon.png' };
 const MINI = 0.2; // the mini globe is the globe view at a fifth of its size
 const TOWER_Y = 4;
 const OUTPUT_Y = 22;
@@ -144,7 +143,6 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
   // Publishing: each blog a box whose VOLUME is its article count, with a
   // square section so all four sides are the same 3:1 face, the shape of a
   // wordmark, and the logo looks the same from every side.
-  const logos = new THREE.TextureLoader();
   const towers = graph.sites.map((s, i) => {
     const h = 0.9 * Math.cbrt(Math.max(1, s.posts) / 9);
     const w = 3 * h;
@@ -161,30 +159,7 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     group.add(mesh, edges);
     pickables.push(mesh);
     labels.push({ text: `${s.name} · ${s.posts}`, pos: { x, y: TOWER_Y + h + 0.4, z: 0 }, color: '#ffffff', px: 12, priority: 4000 });
-    // Reisememo's logo file carries its bar icon; Travelmemo's header logo is
-    // the wordmark alone, so its site icon is drawn in front of it.
-    const icon = ICONS[s.key];
-    Promise.all([logos.loadAsync(`identity/organizations-${s.key}.png`), icon ? logos.loadAsync(icon) : null]).then(([mark, bars]) => {
-      const c = document.createElement('canvas');
-      c.width = 768;
-      c.height = 256;
-      const ctx = c.getContext('2d')!;
-      ctx.fillStyle = color;
-      ctx.fillRect(0, 0, 768, 256);
-      ctx.fillStyle = 'rgba(8, 12, 24, 0.35)';
-      ctx.fillRect(0, 0, 768, 256);
-      const mw = mark.image.width;
-      const mh = mark.image.height;
-      // Fit icon + wordmark into 90% of the width, the icon as tall as the mark.
-      const iw = bars ? mh * 1.15 : 0;
-      const gap = bars ? mh * 0.2 : 0;
-      const k = (768 * 0.9) / (iw + gap + mw);
-      const left = (768 - (iw + gap + mw) * k) / 2;
-      const top = (256 - mh * k) / 2;
-      if (bars) ctx.drawImage(bars.image, left, top - mh * k * 0.075, iw * k, iw * k);
-      ctx.drawImage(mark.image, left + (iw + gap) * k, top, mw * k, mh * k);
-      const tex = new THREE.CanvasTexture(c);
-      tex.colorSpace = THREE.SRGBColorSpace;
+    void logoTexture(s.key, color).then((tex) => {
       face.map = tex;
       face.emissiveMap = tex;
       face.needsUpdate = true;
