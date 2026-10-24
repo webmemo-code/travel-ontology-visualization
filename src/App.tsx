@@ -288,7 +288,8 @@ function Viewer({ graph }: { graph: Graph }) {
             {view === 'graph' ? (
               <p>
                 Each tile is an article (<b style={{ color: '#26C6DA' }}>EN</b> / <b style={{ color: '#B388FF' }}>DE</b>). Countries are patches sized by
-                our articles, not their area; gold lines trace true borders, brighter where we write. Places hang inside. Halo = top
+                our articles, not their area; gold lines trace true borders, brighter where we write. Places hang inside. Topics sink towards where we write about
+                them most; ones we write about everywhere stay high. Companies sit over their headquarters. Halo = top
                 search performer · outline = no article yet.
               </p>
             ) : (
