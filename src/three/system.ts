@@ -8,6 +8,9 @@
 // as its (log-scaled, relative) monthly volume. Without that file the scene
 // falls back to even sizes.
 import * as THREE from 'three';
+import { geoEquirectangular, geoPath } from 'd3-geo';
+import type { Feature, Geometry } from 'geojson';
+import { domeDirection } from '../data/globe';
 import type { Vec3 } from '../data/model';
 import type { Graph, SystemNumbers } from '../data/types';
 
@@ -93,44 +96,56 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
   const globeTop = new THREE.Vector3(0, CUBE_Y + r, 0);
   labels.push({ text: `Ontology · ${graph.nodes.length} entities in YAML`, pos: { x: r + 9, y: CUBE_Y, z: 0 }, color: '#FFD54F', px: 16, priority: 5000 });
 
-  // Publishing: each blog a cube whose VOLUME is its article count, so its
-  // side faces are square and the logo can fill them.
+  // Publishing: each blog a flat box whose VOLUME is its article count. The
+  // long faces are 3:1, the shape of a wordmark, so the logo fills them; the
+  // square ends carry it smaller.
   const logos = new THREE.TextureLoader();
+  const dims = graph.sites.map((s) => {
+    const h = 0.75 * Math.cbrt(Math.max(1, s.posts) / 3);
+    return { w: 3 * h, h, d: h };
+  });
   const towers = graph.sites.map((s, i) => {
-    const side = 0.79 * Math.cbrt(Math.max(1, s.posts));
-    const x = (i === 0 ? -1 : 1) * 9;
+    const { w, h, d } = dims[i];
+    const x = (i === 0 ? -1 : 1) * (w / 2 + 1);
     const color = i === 0 ? '#26C6DA' : '#7E57C2';
     const plain = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.55 });
-    const face = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 0.35 });
-    // Box faces: +x, -x, +y, -y, +z, -z. The logo goes on the four sides.
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(side, side, side), [face, face, plain, plain, face, face]);
-    mesh.position.set(x, TOWER_Y + side / 2, 0);
+    const long = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 0.35 });
+    const end = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 0.35 });
+    // Box faces: +x, -x, +y, -y, +z, -z.
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [end, end, plain, plain, long, long]);
+    mesh.position.set(x, TOWER_Y + h / 2, 0);
     mesh.userData.key = `sys:site:${s.key}`;
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.6 }));
     edges.position.copy(mesh.position);
     group.add(mesh, edges);
     pickables.push(mesh);
-    labels.push({ text: `${s.name} · ${s.posts}`, pos: { x, y: TOWER_Y + side + 0.4, z: 0 }, color: '#ffffff', px: 12, priority: 4000 });
+    labels.push({ text: `${s.name} · ${s.posts}`, pos: { x, y: TOWER_Y + h + 0.4, z: 0 }, color: '#ffffff', px: 12, priority: 4000 });
     logos.load(`identity/organizations-${s.key}.png`, (img) => {
-      // The logo is light text on a transparent PNG: paint it full-width onto
-      // the blog's colour, darkened so the lettering reads.
-      const c = document.createElement('canvas');
-      c.width = c.height = 512;
-      const ctx = c.getContext('2d')!;
-      ctx.fillStyle = color;
-      ctx.fillRect(0, 0, 512, 512);
-      ctx.fillStyle = 'rgba(8, 12, 24, 0.35)';
-      ctx.fillRect(0, 0, 512, 512);
-      const w = 470;
-      const h = (w * img.image.height) / img.image.width;
-      ctx.drawImage(img.image, (512 - w) / 2, (512 - h) / 2, w, h);
-      const tex = new THREE.CanvasTexture(c);
-      tex.colorSpace = THREE.SRGBColorSpace;
-      face.map = tex;
-      face.emissiveMap = tex;
-      face.needsUpdate = true;
+      // The logo is light text on a transparent PNG: paint it onto the blog's
+      // colour, darkened a little so the lettering reads.
+      const paint = (cw: number, ch: number, fill: number) => {
+        const c = document.createElement('canvas');
+        c.width = cw;
+        c.height = ch;
+        const ctx = c.getContext('2d')!;
+        ctx.fillStyle = color;
+        ctx.fillRect(0, 0, cw, ch);
+        ctx.fillStyle = 'rgba(8, 12, 24, 0.35)';
+        ctx.fillRect(0, 0, cw, ch);
+        const lw = cw * fill;
+        const lh = (lw * img.image.height) / img.image.width;
+        ctx.drawImage(img.image, (cw - lw) / 2, (ch - lh) / 2, lw, lh);
+        const tex = new THREE.CanvasTexture(c);
+        tex.colorSpace = THREE.SRGBColorSpace;
+        return tex;
+      };
+      for (const [m, tex] of [[long, paint(768, 256, 0.9)], [end, paint(256, 256, 0.9)]] as const) {
+        m.map = tex;
+        m.emissiveMap = tex;
+        m.needsUpdate = true;
+      }
     });
-    return new THREE.Vector3(x, TOWER_Y + side, 0);
+    return new THREE.Vector3(x, TOWER_Y + h, 0);
   });
   for (const t of towers) segments.push([globeTop, t.clone().setY(TOWER_Y), 'up']);
 
@@ -194,6 +209,7 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     ['sys:assistants', 'AI assistants', 'assistants', ['sys:html', 'sys:entitymap', 'sys:llmstxt', 'sys:okf']],
     ['sys:travelers', 'Travelers', 'travelers', ['sys:html', 'sys:photos', 'sys:taxonomy']],
   ];
+  const spheres = new Map<string, THREE.Vector3>();
   consumers.forEach(([key, title, field, from], i) => {
     const w = numbers?.consumers[field] ?? 0.6;
     const size = 1 + 2.6 * w;
@@ -208,7 +224,29 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     pickables.push(mesh);
     labels.push({ text: title, pos: { x: at.x, y: at.y + 2 * size + 1.2, z: at.z }, color: '#ffffff', px: 12, priority: 4000 });
     for (const k of from) segments.push([outTops[outputs.findIndex(([key]) => key === k)], v(at), 'up']);
+    spheres.set(key, mesh.position.clone());
   });
+  // Many travelers arrive through a search engine or an AI answer, not
+  // directly: green arcs from those readers over to the travelers.
+  const referrals = ['sys:google', 'sys:ai-search', 'sys:assistants'].map((from) => {
+    const a = spheres.get(from)!;
+    const b = spheres.get('sys:travelers')!;
+    const mid = a.clone().add(b).multiplyScalar(0.5);
+    mid.y += 6 + a.distanceTo(b) * 0.12;
+    return new THREE.QuadraticBezierCurve3(a, mid, b);
+  });
+  for (const arc of referrals)
+    group.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(arc.getPoints(40)),
+        new THREE.LineBasicMaterial({ color: '#81C784', transparent: true, opacity: 0.5 }),
+      ),
+    );
+  const refCount = referrals.length * 8;
+  const refPositions = new Float32Array(refCount * 3);
+  const rgeo = new THREE.BufferGeometry();
+  rgeo.setAttribute('position', new THREE.BufferAttribute(refPositions, 3));
+  group.add(new THREE.Points(rgeo, new THREE.PointsMaterial({ color: '#C8E6C9', size: 0.55, transparent: true, opacity: 0.95 })));
 
   const beamGeo = new THREE.BufferGeometry().setFromPoints(segments.flatMap(([a, b]) => [a, b]));
   group.add(new THREE.LineSegments(beamGeo, new THREE.LineBasicMaterial({ color: '#4FC3F7', transparent: true, opacity: 0.18 })));
@@ -234,6 +272,11 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
       linkPositions.set([tmp.x, tmp.y, tmp.z], i * 3);
     }
     lgeo.attributes.position.needsUpdate = true;
+    for (let i = 0; i < refCount; i++) {
+      referrals[i % referrals.length].getPoint((t * 0.25 + i / refCount) % 1, tmp);
+      refPositions.set([tmp.x, tmp.y, tmp.z], i * 3);
+    }
+    rgeo.attributes.position.needsUpdate = true;
   };
 
   /** Continents on the mini globe: the globe view's border segments, scaled down. */
@@ -249,5 +292,53 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     group.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#9c7f35', transparent: true, opacity: 0.7 })));
   };
 
-  return { group, labels, pickables, animate, setCoastlines };
+  /**
+   * Land on the mini globe, filled semi-transparent so the continents read as
+   * shapes, not only as outlines. The countries are drawn into an
+   * equirectangular canvas, and the sphere is built from a lat/lon grid through
+   * domeDirection, so the texture sits on the same rotated globe as the borders.
+   */
+  const setLand = (features: Feature<Geometry>[]) => {
+    const c = document.createElement('canvas');
+    c.width = 2048;
+    c.height = 1024;
+    const ctx = c.getContext('2d')!;
+    const path = geoPath(geoEquirectangular().scale(2048 / (2 * Math.PI)).translate([1024, 512]), ctx);
+    ctx.fillStyle = 'rgba(201, 162, 74, 0.38)';
+    for (const f of features) {
+      ctx.beginPath();
+      path(f);
+      ctx.fill();
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const rows = 64;
+    const cols = 128;
+    const radius = globeRadius * 0.96 * MINI;
+    const pos: number[] = [];
+    const uv: number[] = [];
+    const index: number[] = [];
+    for (let i = 0; i <= rows; i++) {
+      const lat = 90 - (180 * i) / rows;
+      for (let j = 0; j <= cols; j++) {
+        const lon = -180 + (360 * j) / cols;
+        const d = domeDirection(lat, lon);
+        pos.push(d[0] * radius, CUBE_Y + d[1] * radius, d[2] * radius);
+        uv.push(j / cols, 1 - i / rows);
+      }
+    }
+    for (let i = 0; i < rows; i++)
+      for (let j = 0; j < cols; j++) {
+        const a = i * (cols + 1) + j;
+        const b = a + cols + 1;
+        index.push(a, b, a + 1, b, b + 1, a + 1);
+      }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(index);
+    group.add(new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide })));
+  };
+
+  return { group, labels, pickables, animate, setCoastlines, setLand };
 }

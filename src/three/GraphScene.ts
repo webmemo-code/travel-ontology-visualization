@@ -502,6 +502,7 @@ export class GraphScene {
       this.ghost.add(lines);
     }
     this.system.setCoastlines([...faint, ...ours]);
+    this.system.setLand(atlas.features);
     this.refreshGhostFocus();
     this.refreshLive(); // readers are placed by country, which needs the atlas
   }
