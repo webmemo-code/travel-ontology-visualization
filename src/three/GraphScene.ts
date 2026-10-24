@@ -57,7 +57,7 @@ const kf = (p: [number, number, number], t: [number, number, number]): CameraKey
   target: { x: t[0], y: t[1], z: t[2] },
 });
 export const HOMES: Record<View, CameraKeyframe> = {
-  system: kf([70, 30, 78], [0, 10, 0]),
+  system: kf([62, 62, 92], [0, 12, 0]),
   // Outside, facing Switzerland: the view that reads like the globe we know.
   graph: kf([28, 30, -142], [0, 2, 0]),
   mirror: kf([0, 12, 84], [0, 4, 0]),
@@ -501,6 +501,7 @@ export class GraphScene {
       lines.renderOrder = -1;
       this.ghost.add(lines);
     }
+    this.system.setCoastlines([...faint, ...ours]);
     this.refreshGhostFocus();
     this.refreshLive(); // readers are placed by country, which needs the atlas
   }

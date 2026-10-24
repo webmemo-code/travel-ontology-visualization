@@ -82,86 +82,117 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     return mesh;
   };
 
-  // The source of truth is the globe itself, small: a faint wire sphere the
-  // entity boxes settle into.
+  // The source of truth is the globe itself, small: the entity boxes settle
+  // inside it, and its continents are drawn once the atlas loads (setCoastlines).
   const r = globeRadius * MINI;
-  const wire = new THREE.LineSegments(
-    new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(r, 3)),
-    new THREE.LineBasicMaterial({ color: '#4FC3F7', transparent: true, opacity: 0.12 }),
-  );
-  wire.position.y = CUBE_Y;
-  group.add(wire);
   plate(CUBE_Y - r - 1.5, r + 4, 'SOURCE OF TRUTH');
   plate(TOWER_Y, 22, 'PUBLISHING');
-  plate(OUTPUT_Y, 42, 'GENERATED OUTPUTS');
+  plate(OUTPUT_Y, 30, 'GENERATED OUTPUTS');
   plate(CONSUMER_Y, 36, 'WHO READS IT');
 
   const globeTop = new THREE.Vector3(0, CUBE_Y + r, 0);
-  labels.push({ text: `Ontology · ${graph.nodes.length} entities in YAML`, pos: { x: 0, y: CUBE_Y + r + 2.5, z: 0 }, color: '#FFD54F', px: 16, priority: 5000 });
+  labels.push({ text: `Ontology · ${graph.nodes.length} entities in YAML`, pos: { x: r + 9, y: CUBE_Y, z: 0 }, color: '#FFD54F', px: 16, priority: 5000 });
 
-  // Publishing: each blog a tower as tall as its article count, wearing its logo.
+  // Publishing: each blog a cube whose VOLUME is its article count, so its
+  // side faces are square and the logo can fill them.
   const logos = new THREE.TextureLoader();
   const towers = graph.sites.map((s, i) => {
-    const h = Math.max(2, s.posts / 70);
-    const x = (i === 0 ? -1 : 1) * 11;
+    const side = 0.79 * Math.cbrt(Math.max(1, s.posts));
+    const x = (i === 0 ? -1 : 1) * 9;
     const color = i === 0 ? '#26C6DA' : '#7E57C2';
-    tile({ key: `sys:site:${s.key}`, title: `${s.name} · ${s.posts}`, at: { x, y: TOWER_Y, z: 0 } }, color, 6, h, 6);
-    // The logo is light text on a transparent PNG: give it a dark badge, sized to
-    // the logo's own aspect once it has loaded, on each side face near the top.
-    const face = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false });
-    const badge = new THREE.MeshBasicMaterial({ color: '#0b1020', transparent: true, opacity: 0.88, depthWrite: false });
-    const planes: THREE.Mesh[] = [];
-    for (let k = 0; k < 4; k++) {
-      const a = (k * Math.PI) / 2;
-      const back = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), badge);
-      const logo = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), face);
-      for (const [m, off, order] of [[back, 3.02, 2], [logo, 3.04, 3]] as const) {
-        m.position.set(x + Math.sin(a) * off, TOWER_Y + h - 1.8, Math.cos(a) * off);
-        m.rotation.y = a;
-        m.renderOrder = order; // after the see-through tower, or it washes them out
-        group.add(m);
-      }
-      planes.push(back, logo);
-    }
-    logos.load(`identity/organizations-${s.key}.png`, (tex) => {
+    const plain = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.55 });
+    const face = new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffffff', emissiveIntensity: 0.35 });
+    // Box faces: +x, -x, +y, -y, +z, -z. The logo goes on the four sides.
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(side, side, side), [face, face, plain, plain, face, face]);
+    mesh.position.set(x, TOWER_Y + side / 2, 0);
+    mesh.userData.key = `sys:site:${s.key}`;
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.6 }));
+    edges.position.copy(mesh.position);
+    group.add(mesh, edges);
+    pickables.push(mesh);
+    labels.push({ text: `${s.name} · ${s.posts}`, pos: { x, y: TOWER_Y + side + 0.4, z: 0 }, color: '#ffffff', px: 12, priority: 4000 });
+    logos.load(`identity/organizations-${s.key}.png`, (img) => {
+      // The logo is light text on a transparent PNG: paint it full-width onto
+      // the blog's colour, darkened so the lettering reads.
+      const c = document.createElement('canvas');
+      c.width = c.height = 512;
+      const ctx = c.getContext('2d')!;
+      ctx.fillStyle = color;
+      ctx.fillRect(0, 0, 512, 512);
+      ctx.fillStyle = 'rgba(8, 12, 24, 0.35)';
+      ctx.fillRect(0, 0, 512, 512);
+      const w = 470;
+      const h = (w * img.image.height) / img.image.width;
+      ctx.drawImage(img.image, (512 - w) / 2, (512 - h) / 2, w, h);
+      const tex = new THREE.CanvasTexture(c);
       tex.colorSpace = THREE.SRGBColorSpace;
       face.map = tex;
+      face.emissiveMap = tex;
       face.needsUpdate = true;
-      const aspect = tex.image.width / tex.image.height;
-      const w = 5.2;
-      planes.forEach((p, i) => p.scale.set(i % 2 ? w : w + 0.5, i % 2 ? w / aspect : w / aspect + 0.5, 1));
     });
-    return new THREE.Vector3(x, TOWER_Y + h, 0);
+    return new THREE.Vector3(x, TOWER_Y + side, 0);
   });
   for (const t of towers) segments.push([globeTop, t.clone().setY(TOWER_Y), 'up']);
 
-  // Generated outputs: height = log of the items each one serves.
+  // Generated outputs, on a circle so the links between them can show:
+  // height = log of the items each one serves. Order keeps linked ones near.
   const outputs: [string, string, string][] = [
     ['sys:html', 'HTML pages', 'html'],
-    ['sys:images', 'Images', 'images'],
-    ['sys:jsonld', 'JSON-LD', 'jsonld'],
-    ['sys:taxonomy', 'Taxonomies', 'taxonomy'],
-    ['sys:entitymap', 'EntityMap', 'entitymap'],
-    ['sys:llmstxt', 'llms.txt', 'llms'],
+    ['sys:photos', 'Photos', 'images'],
     ['sys:okf', 'OKF bundle', 'okf'],
+    ['sys:llmstxt', 'llms.txt', 'llms'],
+    ['sys:entitymap', 'EntityMap', 'entitymap'],
+    ['sys:taxonomy', 'Taxonomies', 'taxonomy'],
+    ['sys:jsonld', 'JSON-LD', 'jsonld'],
   ];
+  const base = new Map<string, THREE.Vector3>();
   const outTops = outputs.map(([key, title, field], i) => {
     const n = numbers?.outputs[field];
     // Log, offset so the smallest (llms.txt, ~120) still reads as a box and
-    // each tenfold step adds the same height: images stand clearly tallest.
+    // each tenfold step adds the same height: photos stand clearly tallest.
     const h = n ? Math.max(1, 1 + 2.6 * (Math.log10(n) - 1.8)) : 2.4;
-    const at = { x: (i - (outputs.length - 1) / 2) * 10.5, y: OUTPUT_Y, z: 0 };
+    const a = (i / outputs.length) * Math.PI * 2 + Math.PI / 2;
+    const at = { x: Math.cos(a) * 20, y: OUTPUT_Y, z: Math.sin(a) * 20 };
     tile({ key, title: n ? `${title} · ${n.toLocaleString('en')}` : title, at }, '#FF8F00', 4.5, h, 4.5);
+    base.set(key, v(at));
     return new THREE.Vector3(at.x, OUTPUT_Y + h, at.z);
   });
+  // What points to what: arcs over the floor, flowing from the pointer to its target.
+  const links: [string, string][] = [
+    ['sys:okf', 'sys:html'],
+    ['sys:okf', 'sys:photos'],
+    ['sys:llmstxt', 'sys:okf'],
+    ['sys:llmstxt', 'sys:html'],
+    ['sys:entitymap', 'sys:html'],
+    ['sys:jsonld', 'sys:html'],
+    ['sys:taxonomy', 'sys:html'],
+  ];
+  const arcs = links.map(([from, to]) => {
+    const a = base.get(from)!.clone().setY(OUTPUT_Y + 0.6);
+    const b = base.get(to)!.clone().setY(OUTPUT_Y + 0.6);
+    const mid = a.clone().add(b).multiplyScalar(0.5 * 0.55).setY(OUTPUT_Y + 5);
+    return new THREE.QuadraticBezierCurve3(a, mid, b);
+  });
+  for (const arc of arcs)
+    group.add(
+      new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints(arc.getPoints(40)),
+        new THREE.LineBasicMaterial({ color: '#FFB74D', transparent: true, opacity: 0.45 }),
+      ),
+    );
+  const linkCount = arcs.length * 6;
+  const linkPositions = new Float32Array(linkCount * 3);
+  const lgeo = new THREE.BufferGeometry();
+  lgeo.setAttribute('position', new THREE.BufferAttribute(linkPositions, 3));
+  group.add(new THREE.Points(lgeo, new THREE.PointsMaterial({ color: '#FFE0B2', size: 0.5, transparent: true, opacity: 0.95 })));
   for (const o of outTops) for (const t of towers) segments.push([t, o.clone().setY(OUTPUT_Y), 'up']);
 
   // Who reads it: sphere size = relative monthly volume (log-scaled upstream).
-  const consumers: [string, string, string, number[]][] = [
-    ['sys:google', 'Google Search', 'google', [0, 1, 2, 3]],
-    ['sys:ai-search', 'AI search', 'ai-search', [0, 2, 4, 5, 6]],
-    ['sys:assistants', 'AI assistants', 'assistants', [0, 4, 5, 6]],
-    ['sys:travelers', 'Travelers', 'travelers', [0, 1, 3]],
+  const consumers: [string, string, string, string[]][] = [
+    ['sys:google', 'Google Search', 'google', ['sys:html', 'sys:photos', 'sys:jsonld', 'sys:taxonomy']],
+    ['sys:ai-search', 'AI search', 'ai-search', ['sys:html', 'sys:jsonld', 'sys:entitymap', 'sys:llmstxt', 'sys:okf']],
+    ['sys:assistants', 'AI assistants', 'assistants', ['sys:html', 'sys:entitymap', 'sys:llmstxt', 'sys:okf']],
+    ['sys:travelers', 'Travelers', 'travelers', ['sys:html', 'sys:photos', 'sys:taxonomy']],
   ];
   consumers.forEach(([key, title, field, from], i) => {
     const w = numbers?.consumers[field] ?? 0.6;
@@ -176,7 +207,7 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     group.add(mesh);
     pickables.push(mesh);
     labels.push({ text: title, pos: { x: at.x, y: at.y + 2 * size + 1.2, z: at.z }, color: '#ffffff', px: 12, priority: 4000 });
-    for (const j of from) segments.push([outTops[j], v(at), 'up']);
+    for (const k of from) segments.push([outTops[outputs.findIndex(([key]) => key === k)], v(at), 'up']);
   });
 
   const beamGeo = new THREE.BufferGeometry().setFromPoints(segments.flatMap(([a, b]) => [a, b]));
@@ -198,7 +229,25 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
       positions.set([tmp.x, tmp.y, tmp.z], i * 3);
     }
     pgeo.attributes.position.needsUpdate = true;
+    for (let i = 0; i < linkCount; i++) {
+      arcs[i % arcs.length].getPoint((t * 0.3 + i / linkCount) % 1, tmp);
+      linkPositions.set([tmp.x, tmp.y, tmp.z], i * 3);
+    }
+    lgeo.attributes.position.needsUpdate = true;
   };
 
-  return { group, labels, pickables, animate };
+  /** Continents on the mini globe: the globe view's border segments, scaled down. */
+  const setCoastlines = (segs: number[]) => {
+    const pts = new Float32Array(segs.length);
+    for (let i = 0; i < segs.length; i += 3) {
+      pts[i] = segs[i] * MINI;
+      pts[i + 1] = CUBE_Y + segs[i + 1] * MINI;
+      pts[i + 2] = segs[i + 2] * MINI;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pts, 3));
+    group.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#9c7f35', transparent: true, opacity: 0.7 })));
+  };
+
+  return { group, labels, pickables, animate, setCoastlines };
 }

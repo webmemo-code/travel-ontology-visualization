@@ -66,8 +66,8 @@ export const SYSTEM_INFO: Record<string, SystemInfo> = {
     title: 'HTML pages',
     text: 'The articles themselves, as people and search engines see them. Box heights compare item counts on a log scale.',
   },
-  'sys:images': {
-    title: 'Images',
+  'sys:photos': {
+    title: 'Photos',
     text: 'The photos in the media library, each counted once: the resized versions WordPress makes of a photo are the same image. Captions, keywords and credits travel with them into the OKF bundle.',
   },
 };

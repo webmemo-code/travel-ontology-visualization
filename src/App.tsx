@@ -442,7 +442,7 @@ function Viewer({ graph }: { graph: Graph }) {
                 </p>
               </details>
             ) : (
-              <p>Box height = items each output serves · Sphere = monthly readers, relative · both on a log scale</p>
+              <p>Blog cube volume = articles · Output height = items served · Sphere = monthly readers, relative · heights and spheres on a log scale</p>
             )}
           </>
         )}
