@@ -1,7 +1,7 @@
 // Imperative three.js scene behind all three views:
 //   system - entities packed into the ontology cube under the publishing stack
 //   graph  - the article dome, seen from the inside, with places on inner shells
-//   mirror - Travelmemo and Reisememo as facing walls, bridges between them
+//   mirror - Travelmemo and Reisememo on one flat story map, a cell per story
 // React owns the UI; this class owns WebGL and reports hover/select back.
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -19,7 +19,8 @@ import { haloTexture, makeEmblem, makePortrait } from './portrait';
 import { DOME_R, domeDirection, domeLayout, orgsOverHeadquarters, placesOverTiles, postKey, topicsOverHotspots, type Headquarters } from '../data/globe';
 import { footprints, liftByCountry, type Footprint } from '../data/footprint';
 import type { Atlas } from '../data/atlas';
-import { WALL_X, bridgeKind, mirrorSlots, wallPositions } from '../data/mirror';
+import { layoutStories } from '../data/storymap';
+import { buildStoryMap, type StoryMap } from './storymap';
 import { CLASS_COLORS, ancestorOfType, cooccurring, descendants, labelFor, placeTree, postsFor, slugTitle, statsFor, type PlaceTree, type Vec3 } from '../data/model';
 import type { Graph, GraphNode, GraphPost, Perf, SiteMode, SiteStats } from '../data/types';
 import type { Geometry } from 'geojson';
@@ -61,7 +62,7 @@ export const HOMES: Record<View, CameraKeyframe> = {
   system: kf([52, 62, 92], [-10, 12, 0]),
   // Outside, facing Switzerland: the view that reads like the globe we know.
   graph: kf([28, 30, -142], [0, 2, 0]),
-  mirror: kf([0, 12, 84], [0, 4, 0]),
+  mirror: kf([0, -12, 112], [0, 4, 0]),
 };
 
 const GLOW: Record<Perf, number> = { top10: 1.25, top25: 0.75, active: 0.45, seen: 0.22, none: 0.1 };
@@ -128,6 +129,7 @@ export class GraphScene {
   /** Footprints per site mode, computed on first use. */
   private fps = new Map<SiteMode, Map<string, Footprint>>();
   private mirrorDecor = new THREE.Group();
+  private storyMap!: StoryMap;
   private system: ReturnType<typeof buildSystem>;
   private view: View = 'graph';
   private morph: { from: Map<string, Vec3>; twinFrom: Map<string, Vec3>; t0: number; ms: number } | null = null;
@@ -186,14 +188,25 @@ export class GraphScene {
       const f = this.dome.postFace.get(postKey(graph.posts[i]));
       return f === undefined ? null : { center: this.dome.centers[f].toArray() as [number, number, number], region: this.dome.faceRegion[f] };
     });
+    // The EN <-> DE story map: cells per story; country flags hang over their patch.
+    const story = layoutStories(graph, (k) => this.nodes.get(k)?.geo ?? null);
+    this.storyMap = buildStoryMap(story.cells);
+    const nowhere = story.centres.get('');
+    if (nowhere) this.labels.set('story:nowhere', 'No place tagged', { x: nowhere[0], y: nowhere[1] + 4, z: 1 }, 3000, { px: 12, color: '#B0BEC5', views: ['mirror'] });
+    const storyPositions = new Map<string, Vec3>(
+      graph.nodes.map((n) => {
+        const c = story.centres.get(n.key);
+        return [n.key, c ? { x: c[0], y: c[1], z: 2.5 } : { x: 0, y: 0, z: -400 }];
+      }),
+    );
     // Topics and companies hang over where they are over-represented, judged
     // on both blogs; companies with a known headquarters move there once it loads.
     const globe = topicsOverHotspots(graph, domePos, this.footprintsFor('both'));
     this.layouts = {
       graph: globe,
       system: miniGlobePositions(globe),
-      mirror: wallPositions(graph, -1),
-      mirrorDe: wallPositions(graph, 1),
+      mirror: storyPositions,
+      mirrorDe: storyPositions,
     };
     graph.posts.forEach((p) => this.postsByKey.set(postKey(p), p));
 
@@ -303,50 +316,7 @@ export class GraphScene {
   }
 
   private buildMirror() {
-    const slots = [...mirrorSlots(this.graph).values()];
-    const zs = slots.map((s) => s.z);
-    const ys = slots.map((s) => s.y);
-    const width = Math.max(...zs) - Math.min(...zs) + 6;
-    const height = Math.max(...ys) - Math.min(...ys) + 6;
-    const cy = (Math.max(...ys) + Math.min(...ys)) / 2;
-    for (const [side, name, color] of [
-      [-1, 'TRAVELMEMO · EN', '#26C6DA'],
-      [1, 'REISEMEMO · DE', '#B388FF'],
-    ] as const) {
-      const plane = new THREE.Mesh(
-        new THREE.PlaneGeometry(width, height),
-        new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.05, side: THREE.DoubleSide, depthWrite: false }),
-      );
-      plane.rotation.y = Math.PI / 2;
-      plane.position.set(side * (WALL_X + 2.2), cy, 0);
-      const frame = new THREE.LineSegments(new THREE.EdgesGeometry(plane.geometry), new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.6 }));
-      frame.rotation.copy(plane.rotation);
-      frame.position.copy(plane.position);
-      this.mirrorDecor.add(plane, frame);
-      this.labels.set(`mirror-title:${side}`, name, { x: side * WALL_X, y: cy + height / 2 + 1, z: 0 }, 9000, { px: 18, color, views: ['mirror'] });
-    }
-
-    // One line per entity between its two boxes. One-sided bridges fade from
-    // the blog that writes about it towards the one that does not.
-    const pos: number[] = [];
-    const col: number[] = [];
-    // Shared bridges stay quiet so the one-sided (amber) ones stand out.
-    const cyan = new THREE.Color('#4FC3F7').multiplyScalar(0.4);
-    const amber = new THREE.Color('#FFC107').multiplyScalar(1.6);
-    const dark = new THREE.Color('#1a1a1a');
-    for (const n of this.graph.nodes) {
-      const kind = bridgeKind(n);
-      if (kind === 'none') continue;
-      const a = this.layouts.mirror.get(n.key)!;
-      const b = this.layouts.mirrorDe.get(n.key)!;
-      pos.push(a.x, a.y, a.z, b.x, b.y, b.z);
-      const [ca, cb] = kind === 'shared' ? [cyan, cyan] : kind === 'only-en' ? [amber, dark] : [dark, amber];
-      col.push(...ca.toArray(), ...cb.toArray());
-    }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
-    this.mirrorDecor.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9 })));
+    this.mirrorDecor.add(this.storyMap.group);
   }
 
   // ---------- styling ----------
@@ -506,6 +476,7 @@ export class GraphScene {
     borderSegments(atlas.coast, coast);
     this.system.setCoastlines([...faint, ...ours], coast);
     this.system.setLand(atlas.features);
+    this.storyMap.setAtlas(atlas.features, atlas.coast);
     this.refreshGhostFocus();
     this.refreshLive(); // readers are placed by country, which needs the atlas
   }
@@ -588,7 +559,7 @@ export class GraphScene {
     b.halo.material.opacity = tier === 'top10' ? 0.6 : 0.3;
     if (b.face) {
       const person = node.class === 'people';
-      const f = this.view === 'system' ? 1.3 : this.view === 'mirror' ? 2.8 : person ? 6.5 : Math.max(2.2, b.size * (node.type === 'Country' ? 1.05 : node.class === 'places' ? 1.25 : 1.5));
+      const f = this.view === 'system' ? 1.3 : this.view === 'mirror' ? 1.8 : person ? 6.5 : Math.max(2.2, b.size * (node.type === 'Country' ? 1.05 : node.class === 'places' ? 1.25 : 1.5));
       b.face.scale.set(f * (b.face.userData.aspect ?? 1), f, 1);
       // Emblems stay a little see-through; an orphan's flag or logo fades like its outline would.
       b.face.material.opacity = dim || !present ? 0.2 : orphan ? 0.4 : person ? 1 : 0.7;
@@ -600,7 +571,7 @@ export class GraphScene {
     const hl = this.highlight();
     this.lit = hl?.entities ?? null;
     const mirror = this.view === 'mirror';
-    const maxSize = this.view === 'system' ? 1.1 : mirror ? 2.6 : 3.6;
+    const maxSize = this.view === 'system' ? 1.1 : mirror ? 1.6 : 3.6;
     const ranked = [...this.graph.nodes].sort((a, b) => (statsFor(b, this.mode)?.posts ?? 0) - (statsFor(a, this.mode)?.posts ?? 0));
     const rank = new Map(ranked.map((n, i) => [n.key, i]));
     // Label tiers (see label.ts): the main countries and the most local topics read from afar.
@@ -622,17 +593,22 @@ export class GraphScene {
     for (const node of this.graph.nodes) {
       const v = this.views.get(node.key)!;
       const dim = !!((hl && !hl.entities.has(node.key)) || (this.filter && !this.filter.has(node.key)));
-      const s = mirror ? node.sites.travelmemo ?? null : statsFor(node, this.mode);
+      const s = statsFor(node, mirror ? 'both' : this.mode);
+      // On the story map only countries hang over the cells, as flags.
+      const offMap = mirror && !(node.type === 'Country' && this.layouts.mirror.get(node.key)!.z > 0);
       const present = this.styleBox(v, node, s, dim, maxSize);
-      v.pickable = present || !dim;
+      v.pickable = (present || !dim) && !offMap;
       // A face replaces the box; an invisible box would still write depth and hide it.
-      v.mesh.visible = v.outline.visible = !v.face;
+      v.mesh.visible = v.outline.visible = !v.face && !offMap;
+      if (v.face) v.face.visible = !offMap;
+      if (offMap) v.halo.visible = false;
 
       const sd = node.sites.reisememo ?? null;
       const twinPresent = this.styleBox(v.twin, node, sd, dim, maxSize);
-      for (const o of [v.twin.mesh, v.twin.outline, v.twin.halo, ...(v.twin.face ? [v.twin.face] : [])])
-        o.visible = mirror && (o !== v.twin.halo || v.twin.halo.visible) && !(v.twin.face && (o === v.twin.mesh || o === v.twin.outline));
-      v.twin.pickable = mirror && (twinPresent || !dim);
+      // Twins belonged to the old two-wall view; the story map has one box per entity.
+      for (const o of [v.twin.mesh, v.twin.outline, v.twin.halo, ...(v.twin.face ? [v.twin.face] : [])]) o.visible = false;
+      v.twin.pickable = false;
+      void twinPresent;
 
       // Labels: every entity is a candidate; priority decides who survives the overlap cull.
       const orphan = !s || s.status === 'orphan';
@@ -642,15 +618,12 @@ export class GraphScene {
       if (this.filter?.has(node.key)) priority += 4000;
       if (hl?.entities.has(node.key)) priority += 5000;
       if (node.key === this.selected) priority += 20000;
-      const showMain = this.view !== 'system' && !(dim && !this.filter?.has(node.key)) && (present || this.filter?.has(node.key));
-      const text = mirror ? labelFor(node, 'travelmemo') : labelFor(node, this.mode);
+      const showMain = this.view !== 'system' && !offMap && !(dim && !this.filter?.has(node.key)) && (present || this.filter?.has(node.key));
+      const text = labelFor(node, mirror ? 'travelmemo' : this.mode);
       // The selection, its neighbours and search hits always read, whatever their tier.
       const tier = hl?.entities.has(node.key) || this.filter?.has(node.key) ? 0 : tierOf(node);
       this.labels.set(node.key, showMain ? text : null, this.anchor(v), priority, { px: node.key === this.selected ? 18 : 14, tier });
-      this.labels.set(`twin:${node.key}`, mirror && twinPresent && !dim ? labelFor(node, 'reisememo') : null, this.anchor(v.twin), priority, {
-        px: 14,
-        views: ['mirror'],
-      });
+      this.labels.set(`twin:${node.key}`, null, this.anchor(v.twin), priority);
     }
 
     this.links.children.forEach((c) => {
@@ -662,6 +635,7 @@ export class GraphScene {
     const home = this.selected && this.views.has(this.selected) ? ancestorOfType(this.tree, this.nodes, this.selected, 'Country') : null;
     const fp = this.selectedFootprint();
     this.paintDome(hl?.posts ?? this.filterPosts(), home, fp ? liftByCountry(fp) : null);
+    this.storyMap.paint(hl?.posts ?? this.filterPosts());
     this.updatePhotoSky(hl?.posts ?? null);
   }
 
@@ -809,6 +783,10 @@ export class GraphScene {
     if (!fly) return;
     if (!key) return this.flyTo(HOMES[this.view]);
     const post = this.postsByKey.get(key);
+    if (post && this.view === 'mirror') {
+      const c = this.storyMap.cellOf(key);
+      return c ? this.flyTo(kf([c.x, c.y - 3, 22], [c.x, c.y, 0])) : undefined;
+    }
     if (post && this.view === 'graph') {
       const f = this.dome.postFace.get(key);
       if (f === undefined) return;
@@ -833,7 +811,7 @@ export class GraphScene {
     if (!v) return;
     const p = v.base;
     if (this.view === 'system') return this.flyTo(kf([p.x + 18, p.y + 10, p.z + 22], [p.x, p.y, p.z]));
-    if (this.view === 'mirror') return this.flyTo(kf([0, p.y + 6, p.z + 34], [0, p.y, p.z]));
+    if (this.view === 'mirror') return this.flyTo(kf([p.x, p.y - 4, 30], [p.x, p.y, 0]));
     // Inside the dome, stand behind the entity on the line from its articles
     // and look past it: the tag sits in the foreground, a little off-centre,
     // with its stories glowing behind it. Not all of them fit, and need not.
@@ -918,6 +896,7 @@ export class GraphScene {
     }
     if (this.view === 'system') targets.push(...this.system.pickables);
     if (this.view === 'graph') targets.push(this.dome.mesh);
+    if (this.view === 'mirror') targets.push(this.storyMap.mesh);
     const hits = this.raycaster.intersectObjects(targets, false);
     for (const hit of hits) {
       if (hit.object === this.dome.mesh) {
@@ -925,6 +904,11 @@ export class GraphScene {
         const post = i >= 0 ? this.dome.posts[i] : undefined;
         if (post && (this.mode === 'both' || post.site === this.mode)) return postKey(post);
         continue; // empty tile: look further along the ray
+      }
+      if (hit.object === this.storyMap.mesh) {
+        const key = hit.faceIndex !== undefined && hit.faceIndex !== null ? this.storyMap.postAt(hit.faceIndex) : null;
+        if (key) return key;
+        continue;
       }
       const key = (hit.object.userData.key as string | undefined) ?? this.faceOwner(hit.object);
       if (key) return key;

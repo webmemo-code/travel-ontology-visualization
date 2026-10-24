@@ -40,6 +40,8 @@ export interface GraphPost {
   entities: string[];
   cluster: string;
   perf: Perf;
+  /** The translation on the other blog, "{site}:{id}", when there is one. */
+  pair?: string;
 }
 
 export interface SiteMeta {

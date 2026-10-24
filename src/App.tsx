@@ -3,7 +3,7 @@ import { GraphScene, type View } from './three/GraphScene';
 import { SYSTEM_INFO } from './systemInfo';
 import { TOUR } from './tour';
 import { postKey } from './data/globe';
-import { bridgeCounts } from './data/mirror';
+import { storyCounts } from './data/storymap';
 import { loadAtlas, type Atlas } from './data/atlas';
 import { botName, demoLive, fetchLive, tierOf, type LiveBySite, type LiveSnapshot } from './data/live';
 import { READER_COLOR, TIER_COLORS } from './three/live';
@@ -85,7 +85,7 @@ function Viewer({ graph }: { graph: Graph }) {
   viewRef.current = view;
   const byKey = useMemo(() => new Map(graph.nodes.map((n) => [n.key, n])), [graph]);
   const posts = useMemo(() => new Map(graph.posts.map((p) => [postKey(p), p])), [graph]);
-  const bridges = useMemo(() => bridgeCounts(graph), [graph]);
+  const storyTotals = useMemo(() => storyCounts(graph), [graph]);
   const [atlas, setAtlas] = useState<Atlas | null>(null);
   const [photoSrc, setPhotoSrc] = useState<Record<string, string>>({});
   const [credits, setCredits] = useState<Record<string, Credit>>({});
@@ -390,15 +390,15 @@ function Viewer({ graph }: { graph: Graph }) {
         {view === 'mirror' ? (
           <>
             <div>
-              <i className="bar" style={{ background: '#4FC3F7' }} /> {bridges.shared} on both blogs
+              <i className="split" /> {storyTotals.both} stories on both blogs
             </div>
             <div>
-              <i className="bar" style={{ background: 'linear-gradient(90deg,#FFB300,#1a1a1a)' }} /> {bridges['only-en']} only in English
+              <i className="split en-only" /> {storyTotals.en} only in English
             </div>
             <div>
-              <i className="bar" style={{ background: 'linear-gradient(90deg,#1a1a1a,#FFB300)' }} /> {bridges['only-de']} only in German
+              <i className="split de-only" /> {storyTotals.de} only in German
             </div>
-            <p>Same slot on both walls. Amber bridges are stories one blog tells and the other does not yet.</p>
+            <p>One cell per story, grouped by country and sized by its stories. Top-left half English, bottom-right German; an amber outline is a story the other blog does not tell yet.</p>
           </>
         ) : (
           <>
