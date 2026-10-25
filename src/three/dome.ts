@@ -24,7 +24,7 @@ export interface Dome {
   /** near = colour multiplying the photo up close; far = plain tile colour beyond the photo depth. */
   paint: (rgba: (post: GraphPost) => { near: number[]; far: number[] } | null) => void;
   /** Show photos only on tiles in the nearest sixth of the visible depth; dim tiles beyond it. Returns that depth range. */
-  updateLod: (camera: THREE.Camera) => { from: number; far: number };
+  updateLod: (camera: THREE.Camera, focused?: boolean) => { from: number; far: number };
   /** Map each article's tile to its cell in the photo atlas. */
   setAtlas: (tex: THREE.Texture, atlas: AtlasIndex) => void;
   hasPhoto: (post: GraphPost) => boolean;
@@ -98,7 +98,7 @@ export function buildDome(graph: Graph, pos: Map<string, Vec3>): Dome {
   // Level of detail: a photo shows only while its tile is in the nearest sixth
   // of the depth the dome spans from the camera; further back it fades to the
   // plain EN/DE tile colour, so a wide view stays calm instead of a collage.
-  const lod = { uLod: { value: 1e6 }, uBand: { value: 1 } };
+  const lod = { uLod: { value: 1e6 }, uBand: { value: 1 }, uOverview: { value: 0 }, uPhotoDetail: { value: 0 } };
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, lod);
     shader.vertexShader = shader.vertexShader
@@ -107,13 +107,17 @@ export function buildDome(graph: Graph, pos: Map<string, Vec3>): Dome {
         `#include <common>
         attribute vec4 colorFar;
         varying vec4 vColorFar;
-        varying float vLodDepth;`,
+        varying float vLodDepth;
+        varying vec3 vTileNormal;
+        varying vec3 vTileView;`,
       )
       .replace(
         '#include <project_vertex>',
         `#include <project_vertex>
         vColorFar = colorFar;
-        vLodDepth = -mvPosition.z;`,
+        vLodDepth = -mvPosition.z;
+        vTileNormal = normalMatrix * normal;
+        vTileView = -mvPosition.xyz;`,
       );
     shader.fragmentShader = shader.fragmentShader
       .replace(
@@ -121,8 +125,12 @@ export function buildDome(graph: Graph, pos: Map<string, Vec3>): Dome {
         `#include <common>
         uniform float uLod;
         uniform float uBand;
+        uniform float uOverview;
+        uniform float uPhotoDetail;
         varying vec4 vColorFar;
-        varying float vLodDepth;`,
+        varying float vLodDepth;
+        varying vec3 vTileNormal;
+        varying vec3 vTileView;`,
       )
       .replace(
         '#include <map_fragment>',
@@ -131,11 +139,19 @@ export function buildDome(graph: Graph, pos: Map<string, Vec3>): Dome {
           // Mostly desaturated, so the site tint carries the colour and the mosaic reads as texture, not a collage.
           photo.rgb = mix( vec3( dot( photo.rgb, vec3( 0.299, 0.587, 0.114 ) ) ), photo.rgb, 0.3 );
           vec4 nearColor = diffuseColor * vColor * photo;
-          float lodMix = 1.0 - smoothstep( uLod - uBand, uLod + uBand, vLodDepth );
+          float lodMix = (1.0 - smoothstep( uLod - uBand, uLod + uBand, vLodDepth )) * uPhotoDetail;
           diffuseColor = mix( vColorFar, nearColor, lodMix );
         #else
           diffuseColor = vColorFar;
-        #endif`,
+        #endif
+        float grey = dot( diffuseColor.rgb, vec3( 0.299, 0.587, 0.114 ) );
+        // Keep the EN/DE colours in the overview, with a restrained moving
+        // highlight as the globe turns. Photos retain their existing exposure.
+        diffuseColor.rgb = mix( vec3( grey ) * 0.7, diffuseColor.rgb, mix( 0.78, 1.0, uOverview ) );
+        vec3 halfLight = normalize( normalize( vTileView ) + normalize( vec3( -0.45, 0.65, 1.0 ) ) );
+        float sheen = pow( abs( dot( normalize( vTileNormal ), halfLight ) ), 24.0 );
+        diffuseColor.rgb *= mix( 1.15 + 0.3 * sheen, 1.0, uOverview );
+        diffuseColor.a *= mix( 0.3, 1.0, uOverview );`,
       )
       // Vertex colour is already applied above, per depth; do not multiply it in twice.
       .replace('#include <color_fragment>', '');
@@ -169,8 +185,10 @@ export function buildDome(graph: Graph, pos: Map<string, Vec3>): Dome {
     geo.getAttribute('colorFar').needsUpdate = true;
   };
 
-  const updateLod: Dome['updateLod'] = (camera) => {
+  const updateLod: Dome['updateLod'] = (camera, focused = false) => {
     const d = camera.position.length();
+    lod.uPhotoDetail.value = 1 - THREE.MathUtils.smoothstep(d, DOME_R * 0.8, DOME_R * 1.4);
+    lod.uOverview.value = focused ? 1 : 1 - THREE.MathUtils.smoothstep(d, DOME_R * 0.9, DOME_R * 1.9);
     const near = Math.abs(d - DOME_R);
     const far = d + DOME_R;
     lod.uLod.value = near + (far - near) / 6;

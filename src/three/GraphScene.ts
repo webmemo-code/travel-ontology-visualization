@@ -9,6 +9,8 @@ import { LineSegments2 } from 'three/examples/jsm/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/examples/jsm/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/examples/jsm/lines/LineMaterial.js';
 import { withDepthFade, withHorizonCull } from './depthFade';
+import { withDetailFade } from './detailFade';
+import { buildLand } from './land';
 import { createBloomComposer, type BloomComposerResult } from './bloomComposer';
 import { Labels } from './label';
 import { LiveLayer } from './live';
@@ -79,6 +81,7 @@ interface Box {
   face?: THREE.Sprite;
   base: Vec3;
   size: number;
+  detail: { value: number };
 }
 
 interface NodeView extends Box {
@@ -115,13 +118,13 @@ export class GraphScene {
   private ghost = new THREE.Group();
   private ghostFocus = new THREE.Group();
   private ghostMats: LineMaterial[] = [];
+  private land?: ReturnType<typeof buildLand>;
+  private globeDetail = { value: 0 };
   private photos: { tex: THREE.Texture; index: AtlasIndex } | null = null;
   // A blurred photo of the selection's best article, fading in over the sky.
   private photoSky!: THREE.Mesh<THREE.SphereGeometry, THREE.MeshBasicMaterial>;
   private photoSkyKey: string | null = null;
   private photoSkyTarget = 0;
-  /** Entities the current selection lights; their labels show even on the far side. */
-  private lit: Set<string> | null = null;
   private links = new THREE.Group();
   private focusLinks = new THREE.Group();
   private hotLines = new THREE.Group();
@@ -263,13 +266,18 @@ export class GraphScene {
 
   private makeBox(node: GraphNode, box: THREE.BoxGeometry, edges: THREE.EdgesGeometry, halo: THREE.Texture, base: Vec3): Box {
     const color = new THREE.Color(CLASS_COLORS[node.class] ?? '#B0BEC5');
-    const mesh = new THREE.Mesh(box, new THREE.MeshStandardMaterial({ color, emissive: color, transparent: true, metalness: 0.2, roughness: 0.4 }));
+    const mesh = new THREE.Mesh(box, new THREE.MeshStandardMaterial({ color, emissive: color, transparent: true, depthWrite: false, metalness: 0.2, roughness: 0.4 }));
     mesh.userData.key = node.key;
     const outline = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color, transparent: true }));
     const glow = new THREE.Sprite(new THREE.SpriteMaterial({ map: halo, color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
     const face = node.class === 'people' ? makePortrait(node.id, CLASS_COLORS.people) : undefined;
+    const detail = { value: 1 };
+    withDetailFade(mesh.material, detail, 0.045);
+    withDetailFade(outline.material, detail, 0.08);
+    withDetailFade(glow.material, detail, 0.01, 0.15);
+    if (face) withDetailFade(face.material, detail, 0.08);
     this.scene.add(mesh, outline, glow, ...(face ? [face] : []));
-    return { mesh, outline, halo: glow, face, base: { ...base }, size: 1 };
+    return { mesh, outline, halo: glow, face, base: { ...base }, size: 1, detail };
   }
 
   private buildNodes() {
@@ -303,6 +311,7 @@ export class GraphScene {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(segs, 3));
     this.links.add(new THREE.LineSegments(g, new THREE.LineBasicMaterial({ color: '#4FC3F7', transparent: true, opacity: 0.25 })));
+    withDetailFade((this.links.children[0] as THREE.LineSegments).material as THREE.Material, this.globeDetail, 0.06);
 
     // A trip is drawn as the route itself, stop by stop in itinerary order.
     for (const node of this.graph.nodes) {
@@ -313,6 +322,8 @@ export class GraphScene {
         new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 160, 0.16, 6, false),
         new THREE.MeshBasicMaterial({ color: '#CE93D8', transparent: true, opacity: 0.7 }),
       );
+      tube.material.depthWrite = false;
+      withDetailFade(tube.material, this.globeDetail, 0.06);
       this.links.add(tube);
     }
   }
@@ -394,6 +405,7 @@ export class GraphScene {
         const kind = c.kind ?? (v.node.type === 'Country' ? 'flag' : 'logo');
         for (const b of [v, v.twin] as Box[]) {
           b.face = makeEmblem(c.image, kind, CLASS_COLORS[v.node.class] ?? '#ffffff');
+          withDetailFade(b.face.material, b.detail, v.node.type === 'Country' ? 0.09 : 0.035);
           b.face.position.copy(b.mesh.position);
           this.scene.add(b.face);
         }
@@ -452,6 +464,13 @@ export class GraphScene {
   setAtlas(atlas: Atlas) {
     this.atlas = atlas;
     this.ghost.clear();
+    if (this.land) {
+      this.land.geometry.dispose();
+      this.land.material.map?.dispose();
+      this.land.material.dispose();
+    }
+    this.land = buildLand(atlas.features, GHOST_R * 0.998);
+    this.ghost.add(this.land);
     const covered = new Set(atlas.byNode.values());
     const faint: number[] = [];
     const ours: number[] = [];
@@ -462,12 +481,13 @@ export class GraphScene {
     const { clientWidth: w, clientHeight: h } = this.container;
     this.ghostMats = [];
     for (const [segs, color, opacity, width] of [
-      [faint, 0x5f6b73, 0.4, 1.1],
-      [ours, 0x9c7f35, 0.85, 2.0],
+      [faint, 0x5f6b73, 0.25, 1.0],
+      [ours, 0x9c7f35, 0.6, 1.4],
     ] as const) {
       const mat = new LineMaterial({ color, linewidth: width, transparent: true, opacity, depthWrite: false });
       withDepthFade(mat, 0.7, 0.75);
       withHorizonCull(mat, GHOST_R);
+      withDetailFade(mat, this.globeDetail, 0.4, 0.8);
       mat.resolution.set(w, h);
       this.ghostMats.push(mat);
       const lines = new LineSegments2(new LineSegmentsGeometry().setPositions(segs), mat);
@@ -476,6 +496,13 @@ export class GraphScene {
     }
     const coast: number[] = [];
     borderSegments(atlas.coast, coast);
+    const coastMat = new LineMaterial({ color: 0x86a5ad, linewidth: 1.5, transparent: true, opacity: 0.55, depthWrite: false });
+    coastMat.resolution.set(w, h);
+    withHorizonCull(coastMat, GHOST_R);
+    this.ghostMats.push(coastMat);
+    const coastLines = new LineSegments2(new LineSegmentsGeometry().setPositions(coast), coastMat);
+    coastLines.renderOrder = -1;
+    this.ghost.add(coastLines);
     this.system.setCoastlines([...faint, ...ours], coast);
     this.system.setLand(atlas.features);
     this.storyMap.setAtlas(atlas.features, atlas.coast);
@@ -571,7 +598,6 @@ export class GraphScene {
 
   private applyStyle() {
     const hl = this.highlight();
-    this.lit = hl?.entities ?? null;
     const mirror = this.view === 'mirror';
     const maxSize = this.view === 'system' ? 1.1 : mirror ? 1.6 : 3.6;
     const ranked = [...this.graph.nodes].sort((a, b) => (statsFor(b, this.mode)?.posts ?? 0) - (statsFor(a, this.mode)?.posts ?? 0));
@@ -695,11 +721,22 @@ export class GraphScene {
   private depthFade(range: { from: number; far: number } | null) {
     const fwd = this.camera.getWorldDirection(new THREE.Vector3());
     const at = new THREE.Vector3();
+    // Outside: geography first. Countries regain colour before cantons/sights
+    // as the camera approaches their own shell; other views retain full detail.
+    const overview = this.view === 'graph'
+      ? 1 - THREE.MathUtils.smoothstep(this.camera.position.length(), DOME_R * 0.9, DOME_R * 1.9)
+      : 1;
+    this.globeDetail.value = overview;
+    if (this.land) this.land.material.opacity = THREE.MathUtils.lerp(0.25, 0.08, overview);
     const tint = (m: THREE.Material & { color: THREE.Color }, f: number) => {
       m.color.copy((m.userData.base ??= m.color.clone()) as THREE.Color).multiplyScalar(f);
     };
     for (const v of this.views.values()) {
       for (const b of [v, v.twin]) {
+        const focus = this.selected === v.key || this.filter?.has(v.key);
+        const reach = v.node.class === 'places' && v.node.depth > 1 ? 55 : 90;
+        const local = 1 - THREE.MathUtils.smoothstep(this.camera.position.distanceTo(b.mesh.position), reach * 0.45, reach);
+        b.detail.value = this.view !== 'graph' || focus ? 1 : Math.min(overview, local);
         let f = 1;
         if (range && this.view === 'graph') {
           const depth = at.copy(b.mesh.position).sub(this.camera.position).dot(fwd);
@@ -1004,7 +1041,7 @@ export class GraphScene {
     if (this.morph) this.stepMorph();
     if (this.system.group.visible) this.system.animate(t);
     if (this.live.group.visible) this.live.tick(t);
-    const fade = this.dome.group.visible ? this.dome.updateLod(this.camera) : null;
+    const fade = this.dome.group.visible ? this.dome.updateLod(this.camera, !!this.selected || !!this.filter) : null;
     this.depthFade(fade);
     const sky = this.photoSky.material;
     sky.opacity += (this.photoSkyTarget - sky.opacity) * 0.04;
@@ -1019,13 +1056,11 @@ export class GraphScene {
     }
     this.controls.update();
     const { clientWidth: w, clientHeight: h } = this.container;
-    // From outside the globe, far-side labels would sit on top of the near-side map
-    // (New Zealand over Europe); keep only the selection and its neighbours there.
-    const eye = this.camera.position;
-    const outside = this.view === 'graph' && eye.length() > DOME_R;
-    this.labels.update(this.camera, w, h, this.view, outside
-      ? (key, p) => !this.lit?.has(key) && !this.filter?.has(key) && p.x * eye.x + p.y * eye.y + p.z * eye.z < 0
-      : undefined, fade);
+    // Labels anchor to the interior entity shells, not the geographic surface.
+    // Hide the entire label layer outside, including selections and live labels.
+    const outside = this.view === 'graph' && this.camera.position.length() > DOME_R;
+    this.labels.group.visible = !outside;
+    if (!outside) this.labels.update(this.camera, w, h, this.view, undefined, fade, this.view === 'graph' ? THREE.MathUtils.lerp(0.62, 1, this.globeDetail.value) : 1);
     this.bloom.composer.render();
     this.renderer.autoClear = false;
     this.renderer.clearDepth();

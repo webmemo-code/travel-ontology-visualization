@@ -23,7 +23,7 @@ export function makeLabel(
   { color = '#ffffff', opacity = 1, plain = false }: { color?: string; opacity?: number; plain?: boolean } = {},
 ): THREE.Sprite {
   const size = 28 * RES;
-  const font = `600 ${size}px "Segoe UI", system-ui, sans-serif`;
+  const font = `500 ${size}px "Segoe UI", system-ui, sans-serif`;
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d')!;
   ctx.font = font;
@@ -36,7 +36,7 @@ export function makeLabel(
     ctx.shadowColor = 'rgba(0, 0, 0, 0.95)';
     ctx.shadowBlur = size * 0.25;
   } else {
-    ctx.fillStyle = 'rgba(8, 12, 24, 0.75)';
+    ctx.fillStyle = 'rgba(8, 12, 24, 0.28)';
     ctx.beginPath();
     ctx.roundRect(0, 0, canvas.width, canvas.height, canvas.height / 2);
     ctx.fill();
@@ -125,6 +125,7 @@ export class Labels {
     view: string,
     hide?: (key: string, pos: Vec3) => boolean,
     fade?: { from: number; far: number } | null,
+    prominence = 1,
   ) {
     const k = 2 / (camera.projectionMatrix.elements[5] * h); // sprite scale per pixel, sizeAttenuation off
     const placed: [number, number, number, number][] = [];
@@ -141,8 +142,9 @@ export class Labels {
         continue;
       }
       const depth = fade ? THREE.MathUtils.smoothstep(this.at.dot(this.fwd), fade.from, fade.far) : 0;
-      s.material.opacity = ALPHA[it.tier] * (1 - 0.6 * depth);
-      const hPx = it.px * 1.6 * SCALE[it.tier];
+      const emphasis = it.always ? 1 : prominence;
+      s.material.opacity = ALPHA[it.tier] * (1 - 0.6 * depth) * emphasis;
+      const hPx = it.px * 1.6 * SCALE[it.tier] * THREE.MathUtils.lerp(0.85, 1, emphasis);
       const wPx = hPx * s.userData.aspect;
       const x = ((this.ndc.x + 1) / 2) * w - wPx / 2;
       const y = ((1 - this.ndc.y) / 2) * h - hPx - 6;
