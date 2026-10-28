@@ -1,7 +1,7 @@
 // Scene 1, "the stack": how one ontology becomes everything the sites
-// publish. The entity boxes themselves morph into a mini globe on the bottom
-// floor (the globe view, scaled down); this module builds the floors above it
-// and the beams particles travel along.
+// publish. A mini globe on the bottom floor (the globe view's shell, land and
+// coast, scaled down) stands for the ontology; this module builds the floors
+// above it and the beams particles travel along.
 //
 // Heights and sizes carry data from public/system.json: an output box is as
 // tall as the log of how many items it serves, and a reader sphere is as big
@@ -131,8 +131,8 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     return mesh;
   };
 
-  // The source of truth is the globe itself, small: the entity boxes settle
-  // inside it, and its continents are drawn once the atlas loads (setCoastlines).
+  // The source of truth is the globe itself, small: its continents are drawn
+  // once the atlas loads (setCoastlines, setLand).
   const r = globeRadius * MINI;
   plate(CUBE_Y - r - 1.5, r + 4, 'SOURCE OF TRUTH');
   plate(TOWER_Y, 22, 'PUBLISHING');

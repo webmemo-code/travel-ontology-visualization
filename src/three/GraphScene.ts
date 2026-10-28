@@ -629,9 +629,11 @@ export class GraphScene {
       const dim = !!((hl && !hl.entities.has(node.key)) || (this.filter && !this.filter.has(node.key)));
       const s = statsFor(node, mirror ? 'both' : this.mode);
       // On the story map no boxes or flags at all (they would cover stories);
-      // only countries keep a label, on their patch.
+      // only countries keep a label, on their patch. In "How it works" the mini
+      // globe is one object among the floors: its article shell says enough,
+      // and 200 boxes inside it made the scene too busy.
       const offMap = mirror && !(node.type === 'Country' && this.layouts.mirror.get(node.key)!.z > 0);
-      const noBox = mirror;
+      const noBox = mirror || this.view === 'system';
       const present = this.styleBox(v, node, s, dim, maxSize);
       v.pickable = (present || !dim) && !noBox;
       // A face replaces the box; an invisible box would still write depth and hide it.
