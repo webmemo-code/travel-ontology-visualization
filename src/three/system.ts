@@ -8,16 +8,17 @@
 // as its (log-scaled, relative) monthly volume. Without that file the scene
 // falls back to even sizes.
 import * as THREE from 'three';
-import { geoEquirectangular, geoPath } from 'd3-geo';
 import type { Feature, Geometry } from 'geojson';
-import { domeDirection } from '../data/globe';
 import { withHorizonCull } from './depthFade';
+import { buildLand } from './land';
 import { logoTexture } from './logo';
 import type { Vec3 } from '../data/model';
 import type { Graph, SystemNumbers } from '../data/types';
 
 export const CUBE_Y = -16;
-const MINI = 0.2; // the mini globe is the globe view at a fifth of its size
+export const MINI = 0.2; // the mini globe is the globe view at a fifth of its size
+/** The globe view draws land and borders on this fraction of the dome radius. */
+export const GHOST_SHELL = 0.965;
 const TOWER_Y = 4;
 const OUTPUT_Y = 22;
 const CONSUMER_Y = 38;
@@ -330,21 +331,23 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
   };
 
   /**
-   * Continents on the mini globe: the globe view's border segments, scaled
-   * down, and the coast drawn brighter on top. Built around the globe's own
-   * origin so the horizon cull (as on the big globe) hides the far side.
+   * Borders and coast on the mini globe, in the globe view's colours: the
+   * countries we never write about a faint hairline, ours a muted gold, the
+   * coast grey-blue. Built around the globe's own origin so the horizon cull
+   * (as on the big globe) hides the far side.
    */
-  const setCoastlines = (segs: number[], coast: number[]) => {
+  const setCoastlines = (faint: number[], ours: number[], coast: number[]) => {
     const r0 = globeRadius * MINI;
-    for (const [src, scale, color, opacity] of [
-      [segs, 1, '#9c7f35', 0.7],
-      [coast, 1.004, '#FFD54F', 0.95],
+    for (const [src, color, opacity] of [
+      [faint, 0x5f6b73, 0.25],
+      [ours, 0x9c7f35, 0.6],
+      [coast, 0x86a5ad, 0.55],
     ] as const) {
       const pts = new Float32Array(src.length);
-      for (let i = 0; i < src.length; i++) pts[i] = src[i] * MINI * scale;
+      for (let i = 0; i < src.length; i++) pts[i] = src[i] * MINI;
       const g = new THREE.BufferGeometry();
       g.setAttribute('position', new THREE.BufferAttribute(pts, 3));
-      const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+      const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity, depthWrite: false });
       withHorizonCull(mat, r0);
       const lines = new THREE.LineSegments(g, mat);
       lines.position.y = CUBE_Y;
@@ -353,56 +356,9 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     }
   };
 
-  /**
-   * Land on the mini globe, filled semi-transparent so the continents read as
-   * shapes, not only as outlines. The countries are drawn into an
-   * equirectangular canvas, and the sphere is built from a lat/lon grid through
-   * domeDirection, so the texture sits on the same rotated globe as the borders.
-   */
+  /** Land on the mini globe: the globe view's own land layer, scaled down. */
   const setLand = (features: Feature<Geometry>[]) => {
-    const c = document.createElement('canvas');
-    c.width = 2048;
-    c.height = 1024;
-    const ctx = c.getContext('2d')!;
-    const path = geoPath(geoEquirectangular().scale(2048 / (2 * Math.PI)).translate([1024, 512]), ctx);
-    ctx.fillStyle = 'rgba(201, 162, 74, 0.62)';
-    for (const f of features) {
-      ctx.beginPath();
-      path(f);
-      ctx.fill();
-    }
-    const tex = new THREE.CanvasTexture(c);
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const rows = 64;
-    const cols = 128;
-    const radius = globeRadius * 0.96 * MINI;
-    const pos: number[] = [];
-    const uv: number[] = [];
-    const index: number[] = [];
-    for (let i = 0; i <= rows; i++) {
-      const lat = 90 - (180 * i) / rows;
-      for (let j = 0; j <= cols; j++) {
-        const lon = -180 + (360 * j) / cols;
-        const d = domeDirection(lat, lon);
-        pos.push(d[0] * radius, d[1] * radius, d[2] * radius);
-        uv.push(j / cols, 1 - i / rows);
-      }
-    }
-    for (let i = 0; i < rows; i++)
-      for (let j = 0; j < cols; j++) {
-        const a = i * (cols + 1) + j;
-        const b = a + cols + 1;
-        index.push(a, b, a + 1, b, b + 1, a + 1);
-      }
-    const g = new THREE.BufferGeometry();
-    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-    g.setIndex(index);
-    // Denser land, and only the near side: the far continents no longer show
-    // through as a mirrored second map.
-    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, side: THREE.DoubleSide });
-    withHorizonCull(mat, globeRadius * MINI);
-    const land = new THREE.Mesh(g, mat);
+    const land = buildLand(features, globeRadius * GHOST_SHELL * MINI);
     land.position.y = CUBE_Y;
     land.rotation.y = Math.PI;
     group.add(land);
