@@ -402,11 +402,13 @@ function Viewer({ graph }: { graph: Graph }) {
           </>
         ) : (
           <>
-            {Object.entries(CLASS_NAMES).map(([k, name]) => (
-              <div key={k}>
-                <i style={{ background: CLASS_COLORS[k] }} /> {name}
-              </div>
-            ))}
+            {/* "How it works" shows no entity boxes, so their colour key would explain nothing there. */}
+            {view !== 'system' &&
+              Object.entries(CLASS_NAMES).map(([k, name]) => (
+                <div key={k}>
+                  <i style={{ background: CLASS_COLORS[k] }} /> {name}
+                </div>
+              ))}
             {view === 'graph' && live && (
               <div className="live-legend">
                 <div>
