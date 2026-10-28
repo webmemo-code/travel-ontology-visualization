@@ -72,4 +72,6 @@ export interface SystemNumbers {
   /** Per consumer, `share_site`'s share of its volume, 0..1. */
   share?: Record<string, number>;
   share_site?: string;
+  /** Per output, how often AI crawlers fetched it, as a log weight 0..1. JSON-LD has none. */
+  retrievals?: Record<string, number>;
 }

@@ -1,6 +1,6 @@
 {
  "schema": "ontology-cube/system@1",
- "as_of": "2026-10-23",
+ "as_of": "2026-10-27",
  "window_days": 30,
  "outputs": {
   "html": 1176,
@@ -12,18 +12,26 @@
   "entitymap": 223
  },
  "consumers": {
-  "google": 0.9,
+  "google": 0.72,
   "ai-training": 1.0,
-  "ai-search": 0.67,
-  "assistants": 0.19,
-  "travelers": 0.99
+  "ai-search": 0.59,
+  "assistants": 0.56,
+  "travelers": 0.79
  },
  "share_site": "travelmemo",
  "share": {
   "google": 0.05,
-  "ai-training": 0.66,
-  "ai-search": 0.99,
-  "assistants": 0.4,
-  "travelers": 0.31
+  "ai-training": 0.68,
+  "ai-search": 0.72,
+  "assistants": 0.13,
+  "travelers": 0.34
+ },
+ "retrievals": {
+  "html": 1.0,
+  "images": 0.99,
+  "okf": 0.84,
+  "llms": 0.65,
+  "entitymap": 0.43,
+  "taxonomy": 0.79
  }
 }

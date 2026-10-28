@@ -25,7 +25,7 @@ export const SYSTEM_INFO: Record<string, SystemInfo> = {
   },
   'sys:jsonld': {
     title: 'Schema.org JSON-LD',
-    text: 'Every article carries a structured-data graph: the article, its author, and every place, topic and company it is about. Each one points to Wikidata, so search engines know exactly which "Swiss" or which "Andaz" we mean.',
+    text: 'Every article carries a structured-data graph: the article, its author, and every place, topic and company it is about. Each one points to Wikidata, so search engines know exactly which "Swiss" or which "Andaz" we mean. It travels inside each HTML page and is never fetched on its own, so its cylinder stays thin.',
   },
   'sys:taxonomy': {
     title: 'WordPress taxonomies',
@@ -64,11 +64,11 @@ export const SYSTEM_INFO: Record<string, SystemInfo> = {
   },
   'sys:travelers': {
     title: 'Travelers',
-    text: 'People planning a trip. The same structure powers what they see: destination pages, related articles, and links between the English and German versions of a story. Sphere sizes compare monthly volume on a log scale: travelers (GA4 users), Google (search clicks) and AI fetches. AI fetches are a floor: cached article pages are served without our code, so only AI reads of the AI files (llms.txt, EntityMap, OKF) are counted.',
+    text: 'People planning a trip. The same structure powers what they see: destination pages, related articles, and links between the English and German versions of a story. Sphere sizes compare monthly volume on a log scale: travelers (GA4 users), Google (search clicks) and AI fetches. AI fetches are counted before the cache, every article page included.',
   },
   'sys:html': {
     title: 'HTML pages',
-    text: 'The articles themselves, as people and search engines see them. Box heights compare item counts on a log scale.',
+    text: 'The articles themselves, as people and search engines see them. Each output is a cylinder: its height compares item counts, its width how often AI crawlers fetched it in the last 30 days, both on a log scale.',
   },
   'sys:photos': {
     title: 'Photos',
