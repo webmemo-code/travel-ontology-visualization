@@ -15,8 +15,8 @@ import { createBloomComposer, type BloomComposerResult } from './bloomComposer';
 import { Labels } from './label';
 import { LiveLayer } from './live';
 import type { LiveBySite } from '../data/live';
-import { buildSystem, miniGlobePositions } from './system';
-import { buildDome, type AtlasIndex, type Dome } from './dome';
+import { CUBE_Y, GHOST_SHELL, MINI, buildSystem, miniGlobePositions } from './system';
+import { buildDome, miniDome, type AtlasIndex, type Dome } from './dome';
 import { haloTexture, makeEmblem, makePortrait } from './portrait';
 import { DOME_R, domeDirection, domeLayout, orgsOverHeadquarters, placesOverTiles, postKey, topicsOverHotspots, type Headquarters } from '../data/globe';
 import { footprints, liftByCountry, type Footprint } from '../data/footprint';
@@ -27,7 +27,7 @@ import { CLASS_COLORS, ancestorOfType, cooccurring, descendants, labelFor, place
 import type { Graph, GraphNode, GraphPost, Perf, SiteMode, SiteStats } from '../data/types';
 import type { Geometry } from 'geojson';
 
-const GHOST_R = DOME_R * 0.965;
+const GHOST_R = DOME_R * GHOST_SHELL;
 const MAX_STEP = Math.cos((12 * Math.PI) / 180);
 
 /** True borders on the same rotated globe, as line segments just inside the skin. */
@@ -220,6 +220,12 @@ export class GraphScene {
     this.buildLinks();
     this.buildMirror();
     this.system = buildSystem(graph, graph.system ?? null, DOME_R);
+    // The mini globe wears the globe view's article shell, at the same scale and turn.
+    const shell = miniDome(this.dome);
+    shell.scale.setScalar(MINI);
+    shell.rotation.y = Math.PI;
+    shell.position.y = CUBE_Y;
+    this.system.group.add(shell);
     this.system.labels.forEach((l, i) => this.labels.set(`sys-label:${i}`, l.text, l.pos, l.priority, { px: l.px, color: l.color, views: ['system'], always: true }));
     this.dome.group.add(this.ghost, this.ghostFocus);
     this.scene.add(this.dome.group, this.links, this.focusLinks, this.hotLines, this.mirrorDecor, this.system.group, this.live.group);
@@ -503,7 +509,7 @@ export class GraphScene {
     const coastLines = new LineSegments2(new LineSegmentsGeometry().setPositions(coast), coastMat);
     coastLines.renderOrder = -1;
     this.ghost.add(coastLines);
-    this.system.setCoastlines([...faint, ...ours], coast);
+    this.system.setCoastlines(faint, ours, coast);
     this.system.setLand(atlas.features);
     this.storyMap.setAtlas(atlas.features, atlas.coast);
     this.refreshGhostFocus();
@@ -623,9 +629,11 @@ export class GraphScene {
       const dim = !!((hl && !hl.entities.has(node.key)) || (this.filter && !this.filter.has(node.key)));
       const s = statsFor(node, mirror ? 'both' : this.mode);
       // On the story map no boxes or flags at all (they would cover stories);
-      // only countries keep a label, on their patch.
+      // only countries keep a label, on their patch. In "How it works" the mini
+      // globe is one object among the floors: its article shell says enough,
+      // and 200 boxes inside it made the scene too busy.
       const offMap = mirror && !(node.type === 'Country' && this.layouts.mirror.get(node.key)!.z > 0);
-      const noBox = mirror;
+      const noBox = mirror || this.view === 'system';
       const present = this.styleBox(v, node, s, dim, maxSize);
       v.pickable = (present || !dim) && !noBox;
       // A face replaces the box; an invisible box would still write depth and hide it.

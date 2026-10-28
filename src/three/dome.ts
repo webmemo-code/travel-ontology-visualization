@@ -38,6 +38,36 @@ export interface AtlasIndex {
   src: Record<string, string>;
 }
 
+/**
+ * The article shell for the "How it works" mini globe: the same tiles in their
+ * plain EN/DE colours (no photos, no level of detail), sharing the dome's
+ * geometry, so a repaint shows on both. Scale and place it as the caller needs.
+ */
+export function miniDome(dome: Dome): THREE.Group {
+  const material = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, side: THREE.DoubleSide, depthWrite: false });
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+        attribute vec4 colorFar;
+        varying vec4 vColorFar;`)
+      .replace('#include <project_vertex>', `#include <project_vertex>
+        vColorFar = colorFar;`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>
+        varying vec4 vColorFar;`)
+      .replace('#include <color_fragment>', 'diffuseColor = vColorFar;');
+  };
+  const mesh = new THREE.Mesh(dome.mesh.geometry, material);
+  const wire = new THREE.LineSegments(
+    new THREE.WireframeGeometry(new THREE.IcosahedronGeometry(DOME_R * 1.002, DETAIL)),
+    new THREE.LineBasicMaterial({ color: '#4FC3F7', transparent: true, opacity: 0.08, depthWrite: false }),
+  );
+  mesh.renderOrder = wire.renderOrder = -1;
+  const group = new THREE.Group();
+  group.add(mesh, wire);
+  return group;
+}
+
 export function buildDome(graph: Graph, pos: Map<string, Vec3>): Dome {
   const geo = new THREE.IcosahedronGeometry(DOME_R, DETAIL); // non-indexed: 3 vertices per face
   const p = geo.getAttribute('position') as THREE.BufferAttribute;
