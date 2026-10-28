@@ -116,12 +116,13 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     labels.push({ text: name, pos: { x: -r * 0.55, y: y + 0.5, z: r * 0.84 }, color: '#81D4FA', px: 11, priority: 3000 });
   };
 
-  const tile = (t: SystemTile, color: string, w: number, h: number, d: number) => {
-    const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.55, transparent: true, opacity: 0.85 });
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
+  const tile = (t: SystemTile, color: string, r: number, h: number, opacity = 0.85) => {
+    const mat = new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 0.55, transparent: true, opacity });
+    const mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 48), mat);
     mesh.position.set(t.at.x, t.at.y + h / 2, t.at.z);
     mesh.userData.key = t.key;
-    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry), new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.6 }));
+    // Rims only: a low threshold would also draw every side facet as a line.
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(mesh.geometry, 30), new THREE.LineBasicMaterial({ color: '#ffffff', transparent: true, opacity: 0.6 }));
     edges.position.copy(mesh.position);
     group.add(mesh, edges);
     pickables.push(mesh);
@@ -169,7 +170,8 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
   towers.forEach((t, i) => segments.push({ a: globeTop, b: t.clone().setY(TOWER_Y), ...blogFlow(i) }));
 
   // Generated outputs, on a circle so the links between them can show:
-  // height = log of the items each one serves. Order keeps linked ones near.
+  // height = log of the items each one serves, radius = how often AI crawlers
+  // fetch it (log weight from system.json). Order keeps linked ones near.
   const outputs: [string, string, string][] = [
     ['sys:html', 'HTML pages', 'html'],
     ['sys:photos', 'Photos', 'images'],
@@ -187,7 +189,12 @@ export function buildSystem(graph: Graph, numbers: SystemNumbers | null, globeRa
     const h = n ? Math.max(1, 1 + 2.6 * (Math.log10(n) - 1.8)) : 2.4;
     const a = (i / outputs.length) * Math.PI * 2 + Math.PI / 2;
     const at = { x: Math.cos(a) * 20, y: OUTPUT_Y, z: Math.sin(a) * 20 };
-    tile({ key, title: n ? `${title} · ${n.toLocaleString('en')}` : title, at }, '#FF8F00', 4.5, h, 4.5);
+    // JSON-LD ships inside the HTML and is never fetched on its own: a thin,
+    // faint cylinder. Without system.json every output gets the same radius.
+    const fetched = numbers?.retrievals;
+    const w = fetched?.[field];
+    const r = w !== undefined ? 1.2 + 3.5 * w : fetched ? 0.6 : 2.5;
+    tile({ key, title: n ? `${title} · ${n.toLocaleString('en')}` : title, at }, '#FF8F00', r, h, fetched && w === undefined ? 0.45 : 0.85);
     base.set(key, v(at));
     return new THREE.Vector3(at.x, OUTPUT_Y + h, at.z);
   });
